@@ -3,6 +3,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Btn, Tag } from '../../components/ui';
 import { useAppStore } from '../../store/AppStore';
 import { colors } from '../../theme';
+import { openPlace } from '../../lib/nav';
+import { purposeOf } from '../../lib/purpose';
+import { CATEGORY_ICON } from '../../theme';
 import type { Course } from '../../types';
 
 /** F-GKKPJJ 코스 목록·상태 */
@@ -16,10 +19,25 @@ export default function CoursesScreen() {
     router.push({ pathname: '/course/[id]', params: { id } });
   }
 
-  if (store.ready && store.courses.length === 0) {
+  const savedList = (
+    <>
+      <Text style={[s.section, { marginTop: 24 }]}>저장한 장소 {store.saved.length}</Text>
+      {store.saved.map((p) => (
+        <Pressable key={p.id} onPress={() => openPlace(p)} style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }]}>
+          <Text style={{ fontSize: 20 }}>{CATEGORY_ICON[p.category]}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.name}>{p.name}</Text>
+            <Text style={s.date}>{p.categoryName}{store.hidden[p.id] ? ', 이용할 수 없는 장소' : ''}</Text>
+          </View>
+        </Pressable>
+      ))}
+    </>
+  );
+
+  if (store.ready && store.courses.length === 0 && store.saved.length === 0) {
     return (
       <View style={s.empty}>
-        <Text style={s.emptyTitle}>아직 만든 코스가 없어요</Text>
+        <Text style={s.emptyTitle}>아직 만든 코스나 저장한 장소가 없어요</Text>
         <Text style={s.emptyText}>코스 찾기에서 추천을 받아 저장하거나, 빈 코스를 만들어 장소를 직접 담아 보세요.</Text>
         <Btn label="추천 받으러 가기" kind="primary" onPress={() => router.navigate('/')} />
         <Btn label="빈 코스 만들기" onPress={create} />
@@ -34,6 +52,7 @@ export default function CoursesScreen() {
       {planning.map((c) => <CourseRow key={c.id} c={c} />)}
       {done.length > 0 && <Text style={[s.section, { marginTop: 20 }]}>방문 완료</Text>}
       {done.map((c) => <CourseRow key={c.id} c={c} />)}
+      {store.saved.length > 0 && savedList}
     </ScrollView>
   );
 }
@@ -51,7 +70,7 @@ function CourseRow({ c }: { c: Course }) {
         <Text style={s.meta}>
           {first ? (c.stops.length > 1 ? `${first} 외 ${c.stops.length - 1}곳` : first) : '담은 장소 없음'}
         </Text>
-        <Text style={s.date}>{d.getMonth() + 1}월 {d.getDate()}일 수정</Text>
+        <Text style={s.date}>{purposeOf(c.purpose)?.label ? `${purposeOf(c.purpose)!.label}, ` : ''}{d.getMonth() + 1}월 {d.getDate()}일 수정</Text>
       </View>
       {c.status === 'done' ? <Tag label="방문 완료" tone="done" /> : <Tag label={`${c.stops.length}곳`} tone="route" />}
     </Pressable>

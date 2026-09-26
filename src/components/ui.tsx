@@ -34,25 +34,27 @@ export function Chip({ label, on, onPress, muted }: { label: string; on: boolean
   );
 }
 
-export function ChipGroup({ label, options, value, onChange }: {
+export function ChipGroup({ label, options, value, onChange, allowSkip = true, labels }: {
   label: string; options: readonly string[]; value?: string; onChange: (v?: string) => void;
+  allowSkip?: boolean; labels?: Record<string, string>;
 }) {
   return (
     <View style={s.group}>
       <Text style={s.groupLabel}>{label}</Text>
       <View style={s.chips}>
         {options.map((o) => (
-          <Chip key={o} label={o} on={value === o} onPress={() => onChange(value === o ? undefined : o)} />
+          <Chip key={o} label={labels?.[o] ?? o} on={value === o}
+            onPress={() => onChange(value === o && allowSkip ? undefined : o)} />
         ))}
-        <Chip label="상관없음" muted on={value === undefined} onPress={() => onChange(undefined)} />
+        {allowSkip && <Chip label="상관없음" muted on={value === undefined} onPress={() => onChange(undefined)} />}
       </View>
     </View>
   );
 }
 
-export function Tag({ label, tone = 'rose' }: { label: string; tone?: 'rose' | 'route' | 'done' }) {
-  const bg = tone === 'rose' ? colors.roseSoft : tone === 'route' ? colors.routeSoft : colors.doneSoft;
-  const fg = tone === 'rose' ? colors.rose : tone === 'route' ? colors.route : colors.done;
+export function Tag({ label, tone = 'rose' }: { label: string; tone?: 'rose' | 'route' | 'done' | 'muted' }) {
+  const bg = { rose: colors.roseSoft, route: colors.routeSoft, done: colors.doneSoft, muted: colors.line }[tone];
+  const fg = { rose: colors.rose, route: colors.route, done: colors.done, muted: colors.muted }[tone];
   return <Text style={[s.tag, { backgroundColor: bg, color: fg }]}>{label}</Text>;
 }
 
@@ -71,5 +73,38 @@ const s = StyleSheet.create({
   chipMuted: { borderStyle: 'dashed' },
   chipMutedOn: { backgroundColor: colors.line, borderColor: colors.muted },
   chipText: { fontSize: 14, color: colors.ink },
+  hint: { fontSize: 12, color: colors.muted, marginTop: -6, marginBottom: 8 },
+  section: { fontSize: 17, fontWeight: '800', color: colors.ink },
   tag: { fontSize: 12, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, overflow: 'hidden' },
 });
+
+export function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+  return (
+    <View style={s.group}>
+      <Text style={s.groupLabel}>{label}</Text>
+      {hint ? <Text style={s.hint}>{hint}</Text> : null}
+      {children}
+    </View>
+  );
+}
+
+export function Section({ title, children, right }: { title: string; children: React.ReactNode; right?: React.ReactNode }) {
+  return (
+    <View style={{ marginTop: 24 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <Text style={s.section}>{title}</Text>
+        {right}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+export const inputStyle = {
+  backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: 12,
+  paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: colors.ink, minHeight: 44,
+} as const;
+
+export const cardStyle = {
+  backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: colors.line,
+} as const;

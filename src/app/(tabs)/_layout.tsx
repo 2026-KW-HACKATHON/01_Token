@@ -18,8 +18,16 @@ export default function TabsLayout() {
         options={{ title: '코스 찾기', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>✦</Text> }}
       />
       <Tabs.Screen
+        name="explore"
+        options={{ title: '주변 탐색', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>⌕</Text> }}
+      />
+      <Tabs.Screen
         name="courses"
         options={{ title: '내 코스', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>◎</Text> }}
+      />
+      <Tabs.Screen
+        name="manage"
+        options={{ title: '운영', tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 18 }}>☰</Text> }}
       />
     </Tabs>
   );

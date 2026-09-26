@@ -31,7 +31,7 @@ async function call<T>(path: string, params: Record<string, string | number | un
 const GROUP_TO_CAT: Record<string, Category> = { FD6: 'FOOD', CE7: 'CAFE', AT4: 'SPOT', CT1: 'SPOT' };
 export const CAT_GROUPS: Record<Category, string[]> = { FOOD: ['FD6'], CAFE: ['CE7'], SPOT: ['AT4', 'CT1'] };
 
-function toPlace(d: KakaoDoc): Place | null {
+export function toPlace(d: KakaoDoc): Place | null {
   const category = GROUP_TO_CAT[d.category_group_code];
   if (!category) return null;
   const parts = d.category_name.split(' > ');
@@ -66,6 +66,7 @@ export async function searchNearby(opts: {
   radius: number;
   keyword?: string;
   pages?: number;
+  sort?: 'accuracy' | 'distance';
 }): Promise<Place[]> {
   const path = opts.keyword ? '/search/keyword.json' : '/search/category.json';
   const pages = Array.from({ length: opts.pages ?? 1 }, (_, i) => i + 1);
@@ -79,6 +80,7 @@ export async function searchNearby(opts: {
         radius: opts.radius,
         page,
         size: 15,
+        sort: opts.sort,
       })
     )
   );

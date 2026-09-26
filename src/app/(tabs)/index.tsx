@@ -3,10 +3,11 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Btn, ChipGroup } from '../../components/ui';
-import { BUDGETS, DEFAULT_TIME_SLOT, MOODS, PURPOSES, TIME_SLOTS } from '../../constants';
+import { BUDGETS, DEFAULT_TIME_SLOT, MOODS, TIME_SLOTS } from '../../constants';
+import { PURPOSES } from '../../lib/purpose';
 import { colors } from '../../theme';
 
-/** F-OZVLQS 데이트 선호·조건 입력 */
+/** F-OZVLQS 방문 목적·선호 조건 입력 */
 export default function FindScreen() {
   const [region, setRegion] = useState('성수동');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -56,7 +57,7 @@ export default function FindScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={s.wrap} keyboardShouldPersistTaps="handled">
-      <Text style={s.title}>오늘 데이트,{'\n'}어디서 시작할까요?</Text>
+      <Text style={s.title}>누구와,{'\n'}어디서 시작할까요?</Text>
 
       <View style={s.group}>
         <Text style={s.label}>지역</Text>
@@ -78,13 +79,19 @@ export default function FindScreen() {
         </View>
       </View>
 
+      <ChipGroup
+        label="누구와 가나요?"
+        options={PURPOSES.map((p) => p.key)}
+        labels={Object.fromEntries(PURPOSES.map((p) => [p.key, p.label]))}
+        value={purpose}
+        onChange={setPurpose}
+      />
       <ChipGroup label="방문 시간대" options={TIME_SLOTS} value={timeSlot} onChange={setTimeSlot} />
-      <ChipGroup label="데이트 목적" options={PURPOSES} value={purpose} onChange={setPurpose} />
       <ChipGroup label="분위기" options={MOODS} value={mood} onChange={setMood} />
       <ChipGroup label="예산" options={BUDGETS} value={budget} onChange={setBudget} />
 
       <Text style={s.summary}>
-        {where} 반경 1.5km, {timeSlot ?? `${DEFAULT_TIME_SLOT}(기본)`} 기준으로 추천해요. 고르지 않은 조건은 추천에 쓰지 않아요.
+        {where} 반경 1.5km, {timeSlot ?? `${DEFAULT_TIME_SLOT}(기본)`} 기준으로 추천해요. 프랜차이즈는 빼고 동네 가게만 추천해요.
       </Text>
       <Btn label="추천 받기" kind="primary" onPress={start} />
     </ScrollView>

@@ -1,23 +1,37 @@
 import { CAT_GROUPS, findRegion, searchNearby } from '../api/kakao';
-import {
-  BUDGET_HINTS, DEFAULT_TIME_SLOT, MOOD_KEYWORD, PURPOSE_HINTS, SEARCH_RADIUS_M, SLOT_ORDER,
-} from '../constants';
-import type { Category, Place, Prefs, RecCourse, ScoredPlace } from '../types';
+import { BUDGET_HINTS, DEFAULT_TIME_SLOT, MOOD_KEYWORD, SEARCH_RADIUS_M, SLOT_ORDER } from '../constants';
+import type { Category, Place, Prefs, RecCourse, Review, ScoredPlace } from '../types';
+import { isChain } from './chains';
 import { distanceM, walkMinutes } from './geo';
+import { hintHit, purposeOf } from './purpose';
 
 export interface RecommendResult {
   center: { lat: number; lng: number; label: string };
   places: ScoredPlace[];
   courses: RecCourse[];
   order: Category[];
+  chainExcluded: number;
+}
+
+export interface RecommendContext {
+  savedIds: Set<string>;
+  excludedIds: Set<string>; // 숨김·관심 없음·관리자 비공개
+  reviews: Review[];
 }
 
 const CATS: Category[] = ['FOOD', 'CAFE', 'SPOT'];
-const firstHit = (path: string, hints?: string[]) => hints?.find((h) => path.includes(h));
+
+export async function resolveCenter(prefs: Pick<Prefs, 'region' | 'lat' | 'lng'>) {
+  if (prefs.lat != null && prefs.lng != null) return { lat: prefs.lat, lng: prefs.lng, label: '현재 위치' };
+  if (!prefs.region) throw new Error('지역을 입력하거나 현재 위치를 사용해 주세요.');
+  const r = await findRegion(prefs.region);
+  if (!r) throw new Error(`'${prefs.region}'을(를) 찾지 못했어요. 동 이름이나 역 이름으로 다시 입력해 보세요.`);
+  return r;
+}
 
 /** 개인화 장소 점수 (F-IBCYQW). 근거는 실제로 점수에 반영된 것만 남긴다 */
 function scorePlace(
-  place: Place, center: { lat: number; lng: number }, prefs: Prefs, moodHit: boolean, saved: boolean
+  place: Place, center: { lat: number; lng: number }, prefs: Prefs, moodHit: boolean, ctx: RecommendContext
 ): ScoredPlace {
   const distance = distanceM(center, place);
   const reasons: string[] = [];
@@ -26,14 +40,19 @@ function scorePlace(
     distance <= 1000 ? `기준 위치에서 도보 ${walkMinutes(distance)}분` : `기준 위치에서 ${(distance / 1000).toFixed(1)}km`
   );
 
-  const p = prefs.purpose ? firstHit(place.categoryPath, PURPOSE_HINTS[prefs.purpose]) : undefined;
-  if (p) { score += 20; reasons.push(`${prefs.purpose}에 어울리는 ${p}`); }
+  const purpose = purposeOf(prefs.purpose);
+  const p = purpose ? hintHit(place.categoryPath, purpose.hints) : undefined;
+  if (purpose && p) { score += 20; reasons.push(`${purpose.label}에 어울리는 ${p}`); }
 
-  const b = prefs.budget ? firstHit(place.categoryPath, BUDGET_HINTS[prefs.budget]) : undefined;
+  const b = prefs.budget ? hintHit(place.categoryPath, BUDGET_HINTS[prefs.budget] ?? []) : undefined;
   if (b) { score += 10; reasons.push(`'${prefs.budget}' 예산에 맞는 ${b}`); }
 
   if (moodHit && prefs.mood) { score += 25; reasons.push(`'${prefs.mood}' 분위기 검색에 포함`); }
-  if (saved) { score += 10; reasons.push('내가 저장한 장소'); }
+  if (ctx.savedIds.has(place.id)) { score += 10; reasons.push('내가 저장한 장소'); }
+
+  const mine = ctx.reviews.filter((r) => r.placeId === place.id);
+  if (mine.some((r) => r.revisit)) { score += 10; reasons.push('다시 가고 싶다고 후기를 남긴 곳'); }
+  if (mine.length && mine.every((r) => r.satisfaction <= 2)) score -= 25; // 불만족 후기는 순위만 낮춤
 
   return { place, score, reasons, distance };
 }
@@ -57,7 +76,7 @@ function buildCourses(scored: ScoredPlace[], order: Category[]): RecCourse[] {
       for (const cand of pools[cat]) {
         if (stops.some((s) => s.place.id === cand.place.id)) continue;
         const d = distanceM(prev, cand.place);
-        const v = cand.score - d / 20; // 1km 떨어질 때마다 50점 감점
+        const v = cand.score - d / 20;
         if (v > bestVal) { bestVal = v; best = cand; bestD = d; }
       }
       if (!best) break;
@@ -80,22 +99,24 @@ function buildCourses(scored: ScoredPlace[], order: Category[]): RecCourse[] {
   return courses;
 }
 
-export async function getRecommendations(
-  prefs: Prefs, savedIds: Set<string>, excludedIds: Set<string>
-): Promise<RecommendResult> {
-  let center: RecommendResult['center'];
-  if (prefs.lat != null && prefs.lng != null) {
-    center = { lat: prefs.lat, lng: prefs.lng, label: '현재 위치' };
-  } else {
-    if (!prefs.region) throw new Error('지역을 입력하거나 현재 위치를 사용해 주세요.');
-    const r = await findRegion(prefs.region);
-    if (!r) throw new Error(`'${prefs.region}'을(를) 찾지 못했어요. 동 이름이나 역 이름으로 다시 입력해 보세요.`);
-    center = r;
-  }
+/** 프랜차이즈를 걸러낸 공개 장소 목록 */
+export function filterLocal(places: Place[], excludedIds: Set<string>) {
+  const unique = new Map<string, Place>();
+  places.forEach((p) => unique.set(p.id, p));
+  let chainExcluded = 0;
+  const list = [...unique.values()].filter((p) => {
+    if (excludedIds.has(p.id)) return false;
+    if (isChain(p.name, p.categoryPath)) { chainExcluded++; return false; }
+    return true;
+  });
+  return { list, chainExcluded };
+}
 
+export async function getRecommendations(prefs: Prefs, ctx: RecommendContext): Promise<RecommendResult> {
+  const center = await resolveCenter(prefs);
   const common = { lat: center.lat, lng: center.lng, radius: SEARCH_RADIUS_M };
   const groups = CATS.flatMap((c) => CAT_GROUPS[c]);
-  const base = await Promise.all(groups.map((group) => searchNearby({ ...common, group, pages: 2 })));
+  const base = await Promise.all(groups.map((group) => searchNearby({ ...common, group, pages: 3 })));
 
   const moodKw = prefs.mood ? MOOD_KEYWORD[prefs.mood] : undefined;
   const moodHits: Place[][] = moodKw
@@ -103,14 +124,14 @@ export async function getRecommendations(
     : [];
   const moodIds = new Set(moodHits.flat().map((p) => p.id));
 
-  const all = new Map<string, Place>();
-  [...base.flat(), ...moodHits.flat()].forEach((p) => all.set(p.id, p));
+  const { list, chainExcluded } = filterLocal([...base.flat(), ...moodHits.flat()], ctx.excludedIds);
+  const avoid = purposeOf(prefs.purpose)?.avoid ?? [];
 
-  const places = [...all.values()]
-    .filter((p) => !excludedIds.has(p.id))
-    .map((p) => scorePlace(p, center, prefs, moodIds.has(p.id), savedIds.has(p.id)))
+  const places = list
+    .filter((p) => !hintHit(p.categoryPath, avoid))
+    .map((p) => scorePlace(p, center, prefs, moodIds.has(p.id), ctx))
     .sort((a, b) => b.score - a.score);
 
   const order = SLOT_ORDER[prefs.timeSlot ?? DEFAULT_TIME_SLOT];
-  return { center, places, courses: buildCourses(places, order), order };
+  return { center, places, courses: buildCourses(places, order), order, chainExcluded };
 }

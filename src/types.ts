@@ -18,7 +18,7 @@ export interface Prefs {
   region?: string;
   lat?: number;
   lng?: number;
-  purpose?: string;
+  purpose?: string; // PurposeKey
   mood?: string;
   budget?: string;
   timeSlot?: string;
@@ -40,8 +40,8 @@ export interface RecCourse {
 
 export interface CourseStop {
   place: Place;
-  time?: string; // 방문 예정 시간 "14:00"
-  memo?: string; // 개인 메모 (공유 시 제외)
+  time?: string;
+  memo?: string;
 }
 
 export type CourseStatus = 'planning' | 'done';
@@ -51,9 +51,81 @@ export interface Course {
   name: string;
   stops: CourseStop[];
   status: CourseStatus;
-  sourceKey?: string; // 추천 코스에서 저장한 경우 중복 저장 방지용
+  purpose?: string;
+  sourceKey?: string;
   createdAt: number;
   updatedAt: number;
 }
 
 export type FeedbackKind = 'hide' | 'dislike';
+
+/** 방문 후기 (F-BAYAZZ, F-UZFCSU, F-OVVLRA) */
+export interface Review {
+  id: string;
+  placeId: string;
+  placeName: string;
+  satisfaction: number; // 1~5
+  visitedMonth: string; // YYYY-MM
+  mood: string;
+  priceFeel: string;
+  companion: string;
+  revisit: boolean;
+  text: string;
+  verified: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** 장소 정보 오류 신고 (F-RXNEQL) */
+export interface InfoReport {
+  id: string;
+  placeId: string;
+  placeName: string;
+  field: string;
+  content: string;
+  status: 'received' | 'resolved';
+  createdAt: number;
+}
+
+/** 운영자가 관리하는 장소 정보 (F-TLOBFA) */
+export interface PlaceInfo {
+  open?: string; // HH:MM
+  close?: string; // HH:MM
+  closedDays: number[]; // 0=일 ~ 6=토
+  menu?: string;
+  intro?: string;
+}
+
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
+/** 매장 운영 권한 신청 (F-DGSIXX) */
+export interface OwnerRequest {
+  id: string;
+  place: Place;
+  applicant: string;
+  contact: string;
+  proof: string;
+  status: ReviewStatus;
+  createdAt: number;
+  decidedAt?: number;
+}
+
+/** 운영자 정보 변경 요청과 이력 (F-TLOBFA) */
+export interface InfoEdit {
+  id: string;
+  placeId: string;
+  placeName: string;
+  before: PlaceInfo | null;
+  after: PlaceInfo;
+  status: ReviewStatus;
+  createdAt: number;
+  decidedAt?: number;
+}
+
+export interface HiddenPlace {
+  name: string;
+  reason: string;
+  at: number;
+}
+
+export type Role = 'user' | 'owner' | 'admin';

@@ -4,6 +4,7 @@ import { Alert, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInp
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { Btn, Tag } from '../../components/ui';
 import { distanceM, hasCoord, kakaoRouteUrl, walkMinutes } from '../../lib/geo';
+import { openPlace } from '../../lib/nav';
 import { useAppStore } from '../../store/AppStore';
 import { CATEGORY_ICON, CATEGORY_LABEL, colors } from '../../theme';
 import type { Course, CourseStop } from '../../types';
@@ -154,11 +155,12 @@ export default function CourseDetail() {
             <View style={s.stop}>
               <View style={s.stopHead}>
                 <View style={s.num}><Text style={s.numText}>{i + 1}</Text></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.stopName}>{CATEGORY_ICON[st.place.category]} {st.place.name}</Text>
+                <Pressable style={{ flex: 1 }} onPress={() => openPlace(st.place)}>
+                  <Text style={s.stopName}>{CATEGORY_ICON[st.place.category]} {st.place.name} ›</Text>
                   <Text style={s.muted}>{st.place.categoryName}, {st.place.address}</Text>
                   {!hasCoord(st.place) && <Text style={s.warn}>위치 정보가 없어 지도와 동선에서 빠졌어요.</Text>}
-                </View>
+                  {store.hidden[st.place.id] && <Text style={s.warn}>비공개 처리되어 이용할 수 없는 장소예요.</Text>}
+                </Pressable>
               </View>
               <View style={s.fields}>
                 <TextInput
