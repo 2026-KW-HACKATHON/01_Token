@@ -1,12 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PlaceThumb } from '../components/PlaceThumb';
 import { Btn, Chip, Tag } from '../components/ui';
 import { getRecommendations, type RecommendResult } from '../lib/recommend';
 import { openPlace } from '../lib/nav';
 import { purposeOf } from '../lib/purpose';
 import { excludedIds, useAppStore } from '../store/AppStore';
-import { CATEGORY_ICON, CATEGORY_LABEL, colors } from '../theme';
+import { CATEGORY_LABEL, colors } from '../theme';
 import type { Category, Place, Prefs, RecCourse, ScoredPlace } from '../types';
 
 type Filter = Category | 'ALL';
@@ -107,14 +108,15 @@ export default function RecommendScreen() {
       )}
 
       <Text style={[s.h1, { marginTop: 28 }]}>추천 장소</Text>
+      {result.popular.size > 0 && <Text style={s.muted}>🔥 표시는 네이버 카페·블로그 리뷰가 많은 동네 인기 가게예요.</Text>}
       <View style={s.filters}>
         {FILTERS.map((f) => (
           <Chip key={f} label={f === 'ALL' ? '전체' : CATEGORY_LABEL[f]} on={filter === f} onPress={() => setFilter(f)} />
         ))}
       </View>
       {places.length === 0 && <Text style={s.muted}>이 분류에는 남은 추천 장소가 없어요.</Text>}
-      {places.map((sp) => (
-        <PlaceCard key={sp.place.id} sp={sp} />
+      {places.map((sp, i) => (
+        <PlaceCard key={sp.place.id} sp={sp} popular={result.popular.has(sp.place.id)} showImage={i < 12} />
       ))}
     </ScrollView>
   );
@@ -144,16 +146,16 @@ function CourseCard({ course, onSave, onDislike }: { course: RecCourse; onSave: 
   );
 }
 
-function PlaceCard({ sp }: { sp: ScoredPlace }) {
+function PlaceCard({ sp, popular, showImage }: { sp: ScoredPlace; popular: boolean; showImage: boolean }) {
   const store = useAppStore();
   const p: Place = sp.place;
   const saved = store.isSaved(p.id);
   return (
     <View style={s.card}>
       <Pressable style={s.placeHead} onPress={() => openPlace(p)} accessibilityRole="button">
-        <View style={s.icon}><Text style={{ fontSize: 22 }}>{CATEGORY_ICON[p.category]}</Text></View>
+        <PlaceThumb place={p} enabled={showImage} />
         <View style={{ flex: 1 }}>
-          <Text style={s.name}>{p.name}</Text>
+          <Text style={s.name}>{p.name}{popular ? '  🔥' : ''}</Text>
           <Text style={s.meta} numberOfLines={1}>{p.categoryName}, {p.address}</Text>
         </View>
         <Text style={s.meta}>상세 ›</Text>

@@ -1,6 +1,8 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import { naverMapUrl } from '../../api/naver';
+import { PlaceHero } from '../../components/PlaceThumb';
 import { Btn, cardStyle, Section, Tag } from '../../components/ui';
 import { hasCoord, kakaoRouteUrl } from '../../lib/geo';
 import { closedDaysText, hoursText, OPEN_LABEL, openState } from '../../lib/hours';
@@ -54,6 +56,7 @@ export default function PlaceDetail() {
         <View style={s.banner}><Text style={s.bannerText}>관리자가 비공개 처리한 장소예요 ({hidden.reason}). 추천과 검색에 나오지 않아요.</Text></View>
       )}
 
+      <PlaceHero place={pl} />
       <View style={s.head}>
         <View style={s.icon}><Text style={{ fontSize: 26 }}>{CATEGORY_ICON[pl.category]}</Text></View>
         <View style={{ flex: 1 }}>
@@ -73,7 +76,8 @@ export default function PlaceDetail() {
       </View>
       <View style={s.actions}>
         <Btn label="전화" disabled={!pl.phone} onPress={() => open(`tel:${pl.phone}`, '이 기기에서 전화를 걸 수 없어요.')} style={{ flex: 1 }} />
-        <Btn label="지도 보기" onPress={() => open(pl.url, '카카오맵을 열 수 없어요.')} style={{ flex: 1 }} />
+        <Btn label="카카오맵" onPress={() => open(pl.url, '카카오맵을 열 수 없어요.')} style={{ flex: 1 }} />
+        <Btn label="네이버" onPress={() => open(naverMapUrl(pl.name), '네이버 지도를 열 수 없어요.')} style={{ flex: 1 }} />
         <Btn label="길찾기" disabled={!hasCoord(pl)} onPress={() => open(kakaoRouteUrl(pl), '길찾기를 열 수 없어요.')} style={{ flex: 1 }} />
       </View>
 
@@ -96,7 +100,7 @@ export default function PlaceDetail() {
         ))}
         <View style={s.row}>
           <Text style={s.rowKey}>사진</Text>
-          <Text style={[s.rowVal, s.unknown]}>미등록 (카카오맵 보기에서 확인)</Text>
+          <Text style={[s.rowVal, s.unknown]}>운영자 등록 사진 없음 (위 사진은 검색 이미지)</Text>
         </View>
         <Pressable onPress={() => router.push({ pathname: '/report', params: { p: JSON.stringify(pl) } })}>
           <Text style={s.link}>정보가 틀렸나요? 수정 요청하기</Text>

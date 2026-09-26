@@ -86,3 +86,41 @@ export async function searchNearby(opts: {
   );
   return results.flat().map(toPlace).filter((p): p is Place => p !== null);
 }
+
+/** 좌표 → 동 이름 (현재 위치 검색 시 지역 이름을 얻기 위해) */
+export async function regionName(lat: number, lng: number): Promise<string | null> {
+  try {
+    const docs = await call<{ region_type: string; region_2depth_name: string; region_3depth_name: string }>(
+      '/geo/coord2regioncode.json', { x: lng, y: lat });
+    const d = docs.find((x) => x.region_type === 'H') ?? docs[0];
+    return d ? d.region_3depth_name || d.region_2depth_name : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface SearchImage {
+  thumbnail: string;
+  source: string;
+  docUrl: string;
+}
+
+const imageCache = new Map<string, Promise<SearchImage | null>>();
+
+/** Daum 이미지 검색으로 대표 이미지 1장 (블로그 등 외부 이미지라 실제와 다를 수 있음) */
+export function searchImage(query: string): Promise<SearchImage | null> {
+  const hit = imageCache.get(query);
+  if (hit) return hit;
+  const qs = `query=${encodeURIComponent(query)}&size=1&sort=accuracy`;
+  const req = KEY
+    ? fetch(`https://dapi.kakao.com/v2/search/image?${qs}`, { headers: { Authorization: `KakaoAK ${KEY}` } })
+        .then(async (res) => {
+          if (!res.ok) return null;
+          const d = (await res.json()).documents?.[0];
+          return d ? { thumbnail: d.thumbnail_url, source: d.display_sitename, docUrl: d.doc_url } : null;
+        })
+        .catch(() => null)
+    : Promise.resolve(null);
+  imageCache.set(query, req);
+  return req;
+}

@@ -4,21 +4,23 @@ import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { CAT_GROUPS, searchNearby } from '../../api/kakao';
+import { PlaceThumb } from '../../components/PlaceThumb';
 import { Btn, Chip, inputStyle, Tag } from '../../components/ui';
 import { distanceM, kakaoRouteUrl, walkMinutes } from '../../lib/geo';
 import { OPEN_LABEL, openState } from '../../lib/hours';
 import { openPlace } from '../../lib/nav';
+import { naverEnabled, popularMap } from '../../lib/popular';
 import { hintHit, SEARCH_PURPOSES } from '../../lib/purpose';
 import { filterLocal, resolveCenter } from '../../lib/recommend';
 import { summarize, trustScore } from '../../lib/reviews';
 import { excludedIds, useAppStore } from '../../store/AppStore';
-import { CATEGORY_ICON, CATEGORY_LABEL, colors } from '../../theme';
+import { CATEGORY_LABEL, colors } from '../../theme';
 import type { Category, Place } from '../../types';
 
 type Cat = Category | 'ALL';
-type Sort = 'distance' | 'trust' | 'fit';
+type Sort = 'distance' | 'popular' | 'trust' | 'fit';
 const RADII = [500, 1000, 2000];
-const SORT_LABEL: Record<Sort, string> = { distance: '거리순', trust: '신뢰도순', fit: '적합도순' };
+const SORT_LABEL: Record<Sort, string> = { distance: '거리순', popular: '인기순', trust: '신뢰도순', fit: '적합도순' };
 const km = (m: number) => (m >= 1000 ? `${m / 1000}km` : `${m}m`);
 
 /** F-LBUGRG 위치·상권 검색 + F-NACDUD 필터·정렬 + F-EIPVIV 결과 없음 대안 */
@@ -27,7 +29,7 @@ export default function Explore() {
   const [region, setRegion] = useState('성수동');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [keyword, setKeyword] = useState('');
-  const [searched, setSearched] = useState<{ center: { lat: number; lng: number; label: string }; places: Place[]; chains: number; keyword: string } | null>(null);
+  const [searched, setSearched] = useState<{ center: { lat: number; lng: number; label: string }; places: Place[]; chains: number; keyword: string; popular: Map<string, string> } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [cat, setCat] = useState<Cat>('ALL');
@@ -58,7 +60,8 @@ export default function Explore() {
       const res = await Promise.all(groups.map((group) =>
         searchNearby({ group, lat: center.lat, lng: center.lng, radius: 2000, pages: 3, sort: 'distance', keyword: kw.trim() || undefined })));
       const { list, chainExcluded } = filterLocal(res.flat(), excludedIds(store));
-      setSearched({ center, places: list, chains: chainExcluded, keyword: kw.trim() });
+      const popular = await popularMap(center.area, list, purpose);
+      setSearched({ center, places: list, chains: chainExcluded, keyword: kw.trim(), popular });
     } catch (e) {
       Alert.alert('검색하지 못했어요', e instanceof Error ? e.message : '잠시 후 다시 시도해 주세요.');
     } finally {
@@ -77,16 +80,19 @@ export default function Explore() {
         const sum = summarize(store.reviews, p.id);
         const hit = purposeObj ? hintHit(p.categoryPath, purposeObj.hints) : undefined;
         const avoid = purposeObj ? hintHit(p.categoryPath, purposeObj.avoid) : undefined;
-        return { p, d, sum, hit, avoid, state: openState(store.placeInfo[p.id]) };
+        return { p, d, sum, hit, avoid, state: openState(store.placeInfo[p.id]), hot: searched.popular.get(p.id) };
       })
       .filter((r) => r.d <= radius)
       .filter((r) => cat === 'ALL' || r.p.category === cat)
       .filter((r) => !purposeObj || (r.hit && !r.avoid))
       .filter((r) => !openNow || r.state === 'open');
     const fit = (r: (typeof rows)[number]) =>
-      (r.hit ? 30 : 0) + (store.isSaved(r.p.id) ? 10 : 0) + (r.sum ? r.sum.avg * 4 : 0) - r.d / 100;
+      (r.hit ? 30 : 0) + (r.hot ? 20 : 0) + (store.isSaved(r.p.id) ? 10 : 0) + (r.sum ? r.sum.avg * 4 : 0) - r.d / 100;
     return rows.sort((a, b) =>
-      sort === 'distance' ? a.d - b.d : sort === 'trust' ? trustScore(b.sum) - trustScore(a.sum) || a.d - b.d : fit(b) - fit(a));
+      sort === 'distance' ? a.d - b.d
+        : sort === 'popular' ? Number(Boolean(b.hot)) - Number(Boolean(a.hot)) || trustScore(b.sum) - trustScore(a.sum) || a.d - b.d
+          : sort === 'trust' ? trustScore(b.sum) - trustScore(a.sum) || a.d - b.d
+            : fit(b) - fit(a));
   }, [searched, store, radius, cat, purposeObj, openNow, sort]);
 
   const active: { label: string; clear: () => void }[] = [
@@ -152,7 +158,7 @@ export default function Explore() {
         ))}
       </View>
       <Text style={s.hint}>
-        방문 목적은 가게 분류로 추정하고, 영업 중은 운영자가 등록한 영업시간으로만 판단해요. 신뢰도순은 방문 인증 후기가 많은 곳부터 보여 줘요.
+        방문 목적은 가게 분류로 추정하고, 영업 중은 운영자가 등록한 영업시간으로만 판단해요. 인기순은 네이버 카페·블로그 리뷰가 많은 동네 가게를, 신뢰도순은 방문 인증 후기가 많은 곳을 먼저 보여 줘요.{naverEnabled ? '' : ' (네이버 키가 없어 인기 정보는 꺼져 있어요)'}
       </Text>
 
       {loading && <ActivityIndicator color={colors.rose} style={{ marginTop: 24 }} />}
@@ -179,13 +185,14 @@ export default function Explore() {
           ) : (
             <>
               <Text style={s.count}>{results.length}곳</Text>
-              {results.slice(0, 40).map(({ p, d, sum, state }) => (
+              {results.slice(0, 40).map(({ p, d, sum, state, hot }, i) => (
                 <Pressable key={p.id} onPress={() => openPlace(p)} style={({ pressed }) => [s.item, pressed && { opacity: 0.7 }]}>
-                  <Text style={{ fontSize: 22 }}>{CATEGORY_ICON[p.category]}</Text>
+                  <PlaceThumb place={p} size={52} enabled={i < 15} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.name}>{p.name}</Text>
                     <Text style={s.meta}>{p.categoryName}, {d <= 1000 ? `도보 ${walkMinutes(d)}분` : `${(d / 1000).toFixed(1)}km`}</Text>
                     <View style={s.tags}>
+                      {hot && <Tag label="🔥 인기" />}
                       <Tag label={OPEN_LABEL[state]} tone={state === 'open' ? 'done' : state === 'closed' ? 'rose' : 'muted'} />
                       {sum && <Tag label={`★${sum.avg.toFixed(1)} 후기 ${sum.count}`} tone="route" />}
                       {sum?.verified ? <Tag label={`인증 ${sum.verified}`} tone="done" /> : null}

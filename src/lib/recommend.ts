@@ -1,13 +1,15 @@
-import { CAT_GROUPS, findRegion, searchNearby } from '../api/kakao';
+import { CAT_GROUPS, findRegion, regionName, searchNearby } from '../api/kakao';
 import { BUDGET_HINTS, DEFAULT_TIME_SLOT, MOOD_KEYWORD, SEARCH_RADIUS_M, SLOT_ORDER } from '../constants';
 import type { Category, Place, Prefs, RecCourse, Review, ScoredPlace } from '../types';
 import { isChain } from './chains';
 import { distanceM, walkMinutes } from './geo';
+import { popularMap } from './popular';
 import { hintHit, purposeOf } from './purpose';
 
 export interface RecommendResult {
-  center: { lat: number; lng: number; label: string };
+  center: Center;
   places: ScoredPlace[];
+  popular: Set<string>;
   courses: RecCourse[];
   order: Category[];
   chainExcluded: number;
@@ -21,12 +23,18 @@ export interface RecommendContext {
 
 const CATS: Category[] = ['FOOD', 'CAFE', 'SPOT'];
 
-export async function resolveCenter(prefs: Pick<Prefs, 'region' | 'lat' | 'lng'>) {
-  if (prefs.lat != null && prefs.lng != null) return { lat: prefs.lat, lng: prefs.lng, label: '현재 위치' };
+export interface Center { lat: number; lng: number; label: string; area: string | null }
+
+/** 검색 기준 좌표와 지역 이름 (현재 위치면 동 이름을 찾아 붙인다) */
+export async function resolveCenter(prefs: Pick<Prefs, 'region' | 'lat' | 'lng'>): Promise<Center> {
+  if (prefs.lat != null && prefs.lng != null) {
+    const area = await regionName(prefs.lat, prefs.lng);
+    return { lat: prefs.lat, lng: prefs.lng, label: area ? `현재 위치(${area})` : '현재 위치', area };
+  }
   if (!prefs.region) throw new Error('지역을 입력하거나 현재 위치를 사용해 주세요.');
   const r = await findRegion(prefs.region);
   if (!r) throw new Error(`'${prefs.region}'을(를) 찾지 못했어요. 동 이름이나 역 이름으로 다시 입력해 보세요.`);
-  return r;
+  return { ...r, area: prefs.region };
 }
 
 /** 개인화 장소 점수 (F-IBCYQW). 근거는 실제로 점수에 반영된 것만 남긴다 */
@@ -127,11 +135,19 @@ export async function getRecommendations(prefs: Prefs, ctx: RecommendContext): P
   const { list, chainExcluded } = filterLocal([...base.flat(), ...moodHits.flat()], ctx.excludedIds);
   const avoid = purposeOf(prefs.purpose)?.avoid ?? [];
 
-  const places = list
-    .filter((p) => !hintHit(p.categoryPath, avoid))
-    .map((p) => scorePlace(p, center, prefs, moodIds.has(p.id), ctx))
+  const usable = list.filter((p) => !hintHit(p.categoryPath, avoid));
+  const popular = await popularMap(center.area, usable, prefs.purpose);
+
+  const places = usable
+    .map((p) => {
+      const sp = scorePlace(p, center, prefs, moodIds.has(p.id), ctx);
+      const why = popular.get(p.id);
+      return why ? { ...sp, score: sp.score + 15, reasons: [...sp.reasons, why] } : sp;
+    })
     .sort((a, b) => b.score - a.score);
 
   const order = SLOT_ORDER[prefs.timeSlot ?? DEFAULT_TIME_SLOT];
-  return { center, places, courses: buildCourses(places, order), order, chainExcluded };
+  return {
+    center, places, popular: new Set(popular.keys()), courses: buildCourses(places, order), order, chainExcluded,
+  };
 }
