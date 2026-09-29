@@ -1,9 +1,13 @@
 import { CAT_GROUPS, findRegion, regionName, searchNearby } from '../api/kakao';
 import { BUDGET_HINTS, DEFAULT_TIME_SLOT, MOOD_KEYWORD, SEARCH_RADIUS_M, SLOT_ORDER } from '../constants';
-import type { Category, Place, Prefs, RecCourse, Review, ScoredPlace } from '../types';
+import type { Category, Place, PlaceInfo, Prefs, RecCourse, Review, ScoredPlace } from '../types';
+import { perkActive } from './hours';
 import { isChain } from './chains';
 import { distanceM, walkMinutes } from './geo';
-import { popularMap } from './popular';
+import { ageHit, ageLabel } from './age';
+import { CUISINE_LABEL, cuisinesOf, type CuisineCode } from './cuisine';
+import { annotateDong, FOCUS_DONG, isFocus } from './focus';
+import { naverEnrich } from './popular';
 import { hintHit, purposeOf } from './purpose';
 
 export interface RecommendResult {
@@ -13,12 +17,15 @@ export interface RecommendResult {
   courses: RecCourse[];
   order: Category[];
   chainExcluded: number;
+  focusFallback: boolean; // 월계1동 안에 조건에 맞는 식당이 없어 인접 지역 식당으로 코스를 짠 경우
+  naverAdded: number; // 카카오 목록에 없어 네이버에서 찾아 더한 가게 수
 }
 
 export interface RecommendContext {
   savedIds: Set<string>;
   excludedIds: Set<string>; // 숨김·관심 없음·관리자 비공개
   reviews: Review[];
+  placeInfo?: Record<string, PlaceInfo>; // 운영자 게시 정보 (혜택)
 }
 
 const CATS: Category[] = ['FOOD', 'CAFE', 'SPOT'];
@@ -52,11 +59,29 @@ function scorePlace(
   const p = purpose ? hintHit(place.categoryPath, purpose.hints) : undefined;
   if (purpose && p) { score += 20; reasons.push(`${purpose.label}에 어울리는 ${p}`); }
 
+  // 선호 음식 종류: 맞으면 가산, 음식점인데 안 맞으면 감점 (결과에서 빼지는 않음)
+  if (prefs.cuisines?.length && place.category !== 'SPOT') {
+    const hit = cuisinesOf(place).find((c) => prefs.cuisines!.includes(c));
+    if (hit) { score += 25; reasons.push(`선호 ${CUISINE_LABEL[hit as CuisineCode]}`); }
+    else if (place.category === 'FOOD') score -= 15;
+  }
+
+  // 연령대: 분류 기반 추정으로 순위만 조정
+  const a = ageHit(place, prefs.age);
+  if (a) { score += 12; reasons.push(`${ageLabel(prefs.age)}가 좋아할 만한 ${a.replace(',', '·')}`); }
+
   const b = prefs.budget ? hintHit(place.categoryPath, BUDGET_HINTS[prefs.budget] ?? []) : undefined;
   if (b) { score += 10; reasons.push(`'${prefs.budget}' 예산에 맞는 ${b}`); }
 
   if (moodHit && prefs.mood) { score += 25; reasons.push(`'${prefs.mood}' 분위기 검색에 포함`); }
   if (ctx.savedIds.has(place.id)) { score += 10; reasons.push('내가 저장한 장소'); }
+
+  // 동네 혜택: 적용 시간대 안이면 가산 (F-DHUPAG)
+  const info = ctx.placeInfo?.[place.id];
+  if (perkActive(info)) {
+    score += 10;
+    reasons.push(info?.perkStart ? `지금 혜택 시간: ${info!.perk}` : `동네 혜택: ${info!.perk}`);
+  }
 
   const mine = ctx.reviews.filter((r) => r.placeId === place.id);
   if (mine.some((r) => r.revisit)) { score += 10; reasons.push('다시 가고 싶다고 후기를 남긴 곳'); }
@@ -69,6 +94,9 @@ function scorePlace(
 function buildCourses(scored: ScoredPlace[], order: Category[]): RecCourse[] {
   const pools = {} as Record<Category, ScoredPlace[]>;
   for (const c of order) pools[c] = scored.filter((s) => s.place.category === c).slice(0, 8);
+  // 메인 장소(식사)는 월계1동 가게로 구성 (없으면 전체에서)
+  const focusFood = scored.filter((s) => s.place.category === 'FOOD' && isFocus(s.place)).slice(0, 8);
+  if (focusFood.length) pools.FOOD = focusFood;
   if (order.some((c) => pools[c].length === 0)) return [];
 
   const courses: RecCourse[] = [];
@@ -99,7 +127,11 @@ function buildCourses(scored: ScoredPlace[], order: Category[]): RecCourse[] {
     courses.push({
       key,
       stops: stops.map((s) => s.place),
-      reasons: [`장소 사이 도보 합계 약 ${walkMinutes(walk)}분`, ...extra].slice(0, 3),
+      reasons: [
+        `장소 사이 도보 합계 약 ${walkMinutes(walk)}분`,
+        ...(stops.some((x) => x.place.category === 'FOOD' && isFocus(x.place)) ? [`식사는 ${FOCUS_DONG} 동네 가게`] : []),
+        ...extra,
+      ].slice(0, 3),
       walkMinutes: walkMinutes(walk),
     });
     if (courses.length >= 3) break;
@@ -132,13 +164,22 @@ export async function getRecommendations(prefs: Prefs, ctx: RecommendContext): P
     : [];
   const moodIds = new Set(moodHits.flat().map((p) => p.id));
 
-  const { list, chainExcluded } = filterLocal([...base.flat(), ...moodHits.flat()], ctx.excludedIds);
+  const { list, chainExcluded: chainsKakao } = filterLocal([...base.flat(), ...moodHits.flat()], ctx.excludedIds);
   const avoid = purposeOf(prefs.purpose)?.avoid ?? [];
+  const kakaoUsable = list.filter((p) => !hintHit(p.categoryPath, avoid));
 
-  const usable = list.filter((p) => !hintHit(p.categoryPath, avoid));
-  const popular = await popularMap(center.area, usable, prefs.purpose);
+  // 네이버 인기 검색으로 인기 근거를 붙이고, 카카오 목록에 빠진 인기 가게를 후보에 더한다
+  const { popular, discovered } = await naverEnrich(center.area, center, kakaoUsable, {
+    purpose: prefs.purpose, age: ageLabel(prefs.age), radius: SEARCH_RADIUS_M,
+  });
+  const extra = filterLocal(discovered, ctx.excludedIds);
+  const usable = [
+    ...kakaoUsable,
+    ...extra.list.filter((p) => !hintHit(p.categoryPath, avoid) && distanceM(center, p) <= SEARCH_RADIUS_M + 300),
+  ];
+  const chainExcluded = chainsKakao + extra.chainExcluded;
 
-  const places = usable
+  const firstPass = usable
     .map((p) => {
       const sp = scorePlace(p, center, prefs, moodIds.has(p.id), ctx);
       const why = popular.get(p.id);
@@ -146,8 +187,22 @@ export async function getRecommendations(prefs: Prefs, ctx: RecommendContext): P
     })
     .sort((a, b) => b.score - a.score);
 
+  // 상위 후보의 행정동을 확인해 월계1동 가게를 우선한다
+  const cats: Category[] = ['FOOD', 'CAFE', 'SPOT'];
+  const candidates = cats.flatMap((c) => firstPass.filter((x) => x.place.category === c).slice(0, c === 'FOOD' ? 25 : 12));
+  const annotated = new Map((await annotateDong(candidates.map((x) => x.place))).map((p) => [p.id, p]));
+  const places = firstPass
+    .map((sp) => {
+      const place = annotated.get(sp.place.id) ?? sp.place;
+      return isFocus(place)
+        ? { ...sp, place, score: sp.score + 20, reasons: [...sp.reasons, `${FOCUS_DONG} 동네 가게`] }
+        : { ...sp, place };
+    })
+    .sort((a, b) => b.score - a.score);
+  const focusFallback = !places.some((x) => x.place.category === 'FOOD' && isFocus(x.place));
+
   const order = SLOT_ORDER[prefs.timeSlot ?? DEFAULT_TIME_SLOT];
   return {
-    center, places, popular: new Set(popular.keys()), courses: buildCourses(places, order), order, chainExcluded,
+    center, places, popular: new Set(popular.keys()), courses: buildCourses(places, order), order, chainExcluded, focusFallback, naverAdded: usable.length - kakaoUsable.length,
   };
 }

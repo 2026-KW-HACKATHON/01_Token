@@ -52,6 +52,23 @@ export function ChipGroup({ label, options, value, onChange, allowSkip = true, l
   );
 }
 
+export function MultiChipGroup({ label, options, values, onChange, hint }: {
+  label: string; options: { value: string; label: string }[]; values: string[];
+  onChange: (v: string[]) => void; hint?: string;
+}) {
+  const toggle = (v: string) => onChange(values.includes(v) ? values.filter((x) => x !== v) : [...values, v]);
+  return (
+    <View style={s.group}>
+      <Text style={s.groupLabel}>{label}</Text>
+      {hint ? <Text style={s.hint}>{hint}</Text> : null}
+      <View style={s.chips}>
+        {options.map((o) => <Chip key={o.value} label={o.label} on={values.includes(o.value)} onPress={() => toggle(o.value)} />)}
+        <Chip label="상관없음" muted on={values.length === 0} onPress={() => onChange([])} />
+      </View>
+    </View>
+  );
+}
+
 export function Tag({ label, tone = 'rose' }: { label: string; tone?: 'rose' | 'route' | 'done' | 'muted' }) {
   const bg = { rose: colors.roseSoft, route: colors.routeSoft, done: colors.doneSoft, muted: colors.line }[tone];
   const fg = { rose: colors.rose, route: colors.route, done: colors.done, muted: colors.muted }[tone];

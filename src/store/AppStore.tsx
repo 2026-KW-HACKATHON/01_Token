@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { newId } from '../lib/nav';
 import type {
-  Course, FeedbackKind, HiddenPlace, InfoEdit, InfoReport, OwnerRequest, Place, PlaceInfo, Review, Role,
+  Course, FeedbackKind, HiddenPlace, Home, InfoEdit, InfoReport, OwnerRequest, Place, PlaceInfo, Review, Role,
+  StatEvent, StatType,
 } from '../types';
 
 /**
@@ -20,6 +21,8 @@ interface State {
   placeInfo: Record<string, PlaceInfo>; // 관리자가 게시한 운영 정보
   hidden: Record<string, HiddenPlace>; // 관리자 비공개 장소
   role: Role;
+  home: Home | null; // 내 동네
+  events: Record<string, StatEvent[]>; // 가게별 노출·저장·코스 담기·방문 인증 기록
 }
 
 type AddResult = 'added' | 'duplicate' | 'missing';
@@ -47,13 +50,24 @@ interface Store extends State {
   hidePlace: (p: Place, reason: string) => void;
   unhidePlace: (id: string) => void;
   setRole: (r: Role) => void;
+  setHome: (h: Home | null) => void;
+  logShown: (placeIds: string[], sessionKey: string) => void;
+  stampStop: (courseId: string, placeId: string) => void;
 }
 
 const STORAGE_KEY = '@datecourse/state/v1';
 const initial: State = {
   courses: [], saved: [], feedback: {}, reviews: [], reports: [], ownerRequests: [], infoEdits: [],
-  placeInfo: {}, hidden: {}, role: 'user',
+  placeInfo: {}, hidden: {}, role: 'user', home: null, events: {},
 };
+
+const MAX_EVENTS = 300;
+function addEvents(events: State['events'], ids: string[], t: StatType): State['events'] {
+  const now = Date.now();
+  const next = { ...events };
+  ids.forEach((id) => { next[id] = [...(next[id] ?? []), { t, at: now }].slice(-MAX_EVENTS); });
+  return next;
+}
 const Ctx = createContext<Store | null>(null);
 
 function uniq(places: Place[]) {
@@ -80,9 +94,13 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const patch = useCallback((fn: (s: State) => Partial<State>) => setState((s) => ({ ...s, ...fn(s) })), []);
 
-  const toggleSave = useCallback((p: Place) => patch((s) => ({
-    saved: s.saved.some((x) => x.id === p.id) ? s.saved.filter((x) => x.id !== p.id) : [p, ...s.saved],
-  })), [patch]);
+  const toggleSave = useCallback((p: Place) => patch((s) => {
+    const had = s.saved.some((x) => x.id === p.id);
+    return {
+      saved: had ? s.saved.filter((x) => x.id !== p.id) : [p, ...s.saved],
+      events: had ? s.events : addEvents(s.events, [p.id], 'saved'),
+    };
+  }), [patch]);
 
   const giveFeedback = useCallback((id: string, kind: FeedbackKind) =>
     patch((s) => ({ feedback: { ...s.feedback, [id]: kind } })), [patch]);
@@ -104,7 +122,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       id, name, sourceKey, purpose, status: 'planning', createdAt: now, updatedAt: now,
       stops: uniq(places).map((place) => ({ place })),
     };
-    patch((s) => ({ courses: [course, ...s.courses] }));
+    patch((s) => ({ courses: [course, ...s.courses], events: addEvents(s.events, course.stops.map((x) => x.place.id), 'coursed') }));
     return id;
   }, [patch]);
 
@@ -120,8 +138,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     if (!course) return 'missing';
     if (course.stops.some((s) => s.place.id === p.id)) return 'duplicate';
     updateCourse(courseId, (c) => ({ ...c, stops: [...c.stops, { place: p }] }));
+    patch((s) => ({ events: addEvents(s.events, [p.id], 'coursed') }));
     return 'added';
-  }, [updateCourse]);
+  }, [updateCourse, patch]);
 
   // 후기: 같은 장소는 방문 월이 다를 때만 새로 쓸 수 있다 (S-DHVYXI)
   const saveReview = useCallback((r: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>, editId?: string): Result => {
@@ -130,7 +149,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     );
     if (dup) return 'duplicate';
     const now = Date.now();
+    const prev = ref.current.reviews.find((x) => x.id === editId);
+    const newlyVerified = r.verified && !prev?.verified;
     patch((s) => ({
+      events: newlyVerified ? addEvents(s.events, [r.placeId], 'verified') : s.events,
       reviews: editId
         ? s.reviews.map((x) => (x.id === editId ? { ...x, ...r, updatedAt: now } : x))
         : [{ ...r, id: newId('r'), createdAt: now, updatedAt: now }, ...s.reviews],
@@ -138,8 +160,14 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     return 'ok';
   }, [patch]);
 
-  const verifyReview = useCallback((id: string) =>
-    patch((s) => ({ reviews: s.reviews.map((r) => (r.id === id ? { ...r, verified: true } : r)) })), [patch]);
+  const verifyReview = useCallback((id: string) => patch((s) => {
+    const r = s.reviews.find((x) => x.id === id);
+    if (!r || r.verified) return {};
+    return {
+      reviews: s.reviews.map((x) => (x.id === id ? { ...x, verified: true } : x)),
+      events: addEvents(s.events, [r.placeId], 'verified'),
+    };
+  }), [patch]);
 
   const addReport = useCallback((p: Place, field: string, content: string): Result => {
     if (ref.current.reports.some((r) => r.placeId === p.id && r.field === field && r.status === 'received')) {
@@ -203,6 +231,22 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   }), [patch]);
 
   const setRole = useCallback((role: Role) => patch(() => ({ role })), [patch]);
+  const setHome = useCallback((home: Home | null) => patch(() => ({ home })), [patch]);
+
+  // 같은 결과 화면을 다시 볼 때는 노출을 한 번만 센다
+  const shownKeys = useRef(new Set<string>());
+  const logShown = useCallback((placeIds: string[], sessionKey: string) => {
+    if (!placeIds.length || shownKeys.current.has(sessionKey)) return;
+    shownKeys.current.add(sessionKey);
+    patch((s) => ({ events: addEvents(s.events, placeIds, 'shown') }));
+  }, [patch]);
+
+  const stampStop = useCallback((courseId: string, placeId: string) => patch((s) => ({
+    courses: s.courses.map((c) => (c.id === courseId
+      ? { ...c, updatedAt: Date.now(), stops: c.stops.map((st) => (st.place.id === placeId && !st.stampedAt ? { ...st, stampedAt: Date.now() } : st)) }
+      : c)),
+    events: addEvents(s.events, [placeId], 'verified'),
+  })), [patch]);
 
   const value = useMemo<Store>(() => ({
     ...state,
@@ -210,10 +254,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     isSaved: (id) => state.saved.some((p) => p.id === id),
     toggleSave, giveFeedback, undoFeedback, createCourse, updateCourse, deleteCourse, addPlaceToCourse,
     saveReview, verifyReview, addReport, resolveReport, requestOwner, decideOwner, isOwnerOf,
-    submitInfoEdit, decideInfoEdit, hidePlace, unhidePlace, setRole,
+    submitInfoEdit, decideInfoEdit, hidePlace, unhidePlace, setRole, setHome, logShown, stampStop,
   }), [state, ready, toggleSave, giveFeedback, undoFeedback, createCourse, updateCourse, deleteCourse,
     addPlaceToCourse, saveReview, verifyReview, addReport, resolveReport, requestOwner, decideOwner, isOwnerOf,
-    submitInfoEdit, decideInfoEdit, hidePlace, unhidePlace, setRole]);
+    submitInfoEdit, decideInfoEdit, hidePlace, unhidePlace, setRole, setHome, logShown, stampStop]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

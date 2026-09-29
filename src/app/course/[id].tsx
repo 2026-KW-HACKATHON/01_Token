@@ -1,10 +1,12 @@
+import * as Location from 'expo-location';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { Btn, Tag } from '../../components/ui';
 import { distanceM, hasCoord, kakaoRouteUrl, walkMinutes } from '../../lib/geo';
 import { openPlace } from '../../lib/nav';
+import { VERIFY_RADIUS_M } from '../../lib/reviews';
 import { useAppStore } from '../../store/AppStore';
 import { CATEGORY_ICON, CATEGORY_LABEL, colors } from '../../theme';
 import type { Course, CourseStop } from '../../types';
@@ -15,6 +17,7 @@ export default function CourseDetail() {
   const store = useAppStore();
   const course = store.courses.find((c) => c.id === id);
   const mapRef = useRef<MapView>(null);
+  const [stamping, setStamping] = useState<string | null>(null);
 
   const mapped = useMemo(
     () => (course?.stops ?? []).map((st, i) => ({ st, i })).filter(({ st }) => hasCoord(st.place)),
@@ -55,6 +58,34 @@ export default function CourseDetail() {
   const remove = (i: number) => upd((x) => ({ ...x, stops: x.stops.filter((_, j) => j !== i) }));
   const isEmpty = c.stops.length === 0;
   const addable = store.saved.filter((p) => !c.stops.some((st) => st.place.id === p.id)).slice(0, 10);
+
+  const stamped = c.stops.filter((st) => st.stampedAt).length;
+  const completed = c.stops.length > 0 && stamped === c.stops.length;
+
+  // 동네 스탬프: 가게 200m 안에서 현재 위치로 인증 (F-GBSOED)
+  async function stamp(st: CourseStop) {
+    setStamping(st.place.id);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('위치 권한이 꺼져 있어요', '스탬프는 가게 근처에서 현재 위치로 확인해요.');
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({});
+      const d = distanceM({ lat: pos.coords.latitude, lng: pos.coords.longitude }, st.place);
+      if (d > VERIFY_RADIUS_M) {
+        Alert.alert('아직 가게 근처가 아니에요', `지금 위치가 약 ${Math.round(d)}m 떨어져 있어요. ${VERIFY_RADIUS_M}m 안에서 다시 찍어 주세요.`);
+        return;
+      }
+      store.stampStop(c.id, st.place.id);
+      const left = c.stops.filter((x) => !x.stampedAt && x.place.id !== st.place.id).length;
+      Alert.alert(left ? '스탬프를 찍었어요' : '🏅 코스 완주!', left ? `남은 곳 ${left}곳` : '코스의 모든 동네 가게를 방문했어요.');
+    } catch {
+      Alert.alert('현재 위치를 확인하지 못했어요', '잠시 후 다시 시도해 주세요.');
+    } finally {
+      setStamping(null);
+    }
+  }
 
   function openRoute(st: CourseStop) {
     Linking.openURL(kakaoRouteUrl(st.place)).catch(() =>
@@ -104,6 +135,7 @@ export default function CourseDetail() {
         placeholderTextColor={colors.muted}
       />
       <View style={s.metaRow}>
+        {c.stops.length > 0 && <Tag label={completed ? '🏅 완주' : `스탬프 ${stamped}/${c.stops.length}`} tone={completed ? 'done' : 'muted'} />}
         {c.status === 'done' ? <Tag label="방문 완료" tone="done" /> : <Tag label="계획 중" tone="route" />}
         <Text style={s.muted}>{c.stops.length}곳</Text>
       </View>
@@ -186,6 +218,9 @@ export default function CourseDetail() {
                 <Small label="위로" onPress={() => move(i, -1)} disabled={i === 0} />
                 <Small label="아래로" onPress={() => move(i, 1)} disabled={i === c.stops.length - 1} />
                 <Small label="길찾기" onPress={() => openRoute(st)} disabled={!hasCoord(st.place)} />
+                {st.stampedAt
+                  ? <Text style={s.stampDone}>✅ 스탬프</Text>
+                  : <Small label={stamping === st.place.id ? '확인 중' : '스탬프 찍기'} onPress={() => stamp(st)} disabled={!hasCoord(st.place) || stamping !== null} />}
                 <Small label="빼기" onPress={() => remove(i)} danger />
               </View>
             </View>
@@ -250,7 +285,8 @@ const s = StyleSheet.create({
     backgroundColor: colors.paper, borderRadius: 10, paddingHorizontal: 12, minHeight: 40,
     fontSize: 14, color: colors.ink, borderWidth: 1, borderColor: colors.line,
   },
-  stopActions: { flexDirection: 'row', gap: 18, marginTop: 12 },
+  stopActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, rowGap: 10, marginTop: 12 },
+  stampDone: { fontSize: 14, fontWeight: '700', color: colors.done },
   small: { fontSize: 14, fontWeight: '600', color: colors.muted },
   section: { fontSize: 14, fontWeight: '700', color: colors.muted, marginBottom: 8 },
   addRow: {

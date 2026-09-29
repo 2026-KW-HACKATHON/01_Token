@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
@@ -7,9 +7,11 @@ import { CAT_GROUPS, searchNearby } from '../../api/kakao';
 import { PlaceThumb } from '../../components/PlaceThumb';
 import { Btn, Chip, inputStyle, Tag } from '../../components/ui';
 import { distanceM, kakaoRouteUrl, walkMinutes } from '../../lib/geo';
-import { OPEN_LABEL, openState } from '../../lib/hours';
+import { OPEN_LABEL, openState, paymentLabel, perkActive } from '../../lib/hours';
 import { openPlace } from '../../lib/nav';
-import { naverEnabled, popularMap } from '../../lib/popular';
+import { CUISINE_LABEL, CUISINES, cuisinesOf, detectCuisines, type CuisineCode } from '../../lib/cuisine';
+import { annotateDong, DEFAULT_REGION, FOCUS_DONG, isFocus } from '../../lib/focus';
+import { naverEnabled, naverEnrich } from '../../lib/popular';
 import { hintHit, SEARCH_PURPOSES } from '../../lib/purpose';
 import { filterLocal, resolveCenter } from '../../lib/recommend';
 import { summarize, trustScore } from '../../lib/reviews';
@@ -26,7 +28,7 @@ const km = (m: number) => (m >= 1000 ? `${m / 1000}km` : `${m}m`);
 /** F-LBUGRG 위치·상권 검색 + F-NACDUD 필터·정렬 + F-EIPVIV 결과 없음 대안 */
 export default function Explore() {
   const store = useAppStore();
-  const [region, setRegion] = useState('성수동');
+  const [region, setRegion] = useState(DEFAULT_REGION);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [keyword, setKeyword] = useState('');
   const [searched, setSearched] = useState<{ center: { lat: number; lng: number; label: string }; places: Place[]; chains: number; keyword: string; popular: Map<string, string> } | null>(null);
@@ -35,7 +37,11 @@ export default function Explore() {
   const [cat, setCat] = useState<Cat>('ALL');
   const [radius, setRadius] = useState(1000);
   const [purpose, setPurpose] = useState<string>();
+  const [cuisines, setCuisines] = useState<CuisineCode[]>([]);
+  const [detectedNote, setDetectedNote] = useState<string | null>(null);
   const [openNow, setOpenNow] = useState(false);
+  const [localPay, setLocalPay] = useState(false);
+  const [focusOnly, setFocusOnly] = useState(false);
   const [sort, setSort] = useState<Sort>('distance');
 
   async function useMyLocation() {
@@ -54,14 +60,31 @@ export default function Explore() {
 
   async function search(kw = keyword) {
     setLoading(true);
+    // "중국집", "초밥" 같은 검색어는 음식 종류 필터로 바꿔서 동네 전체에서 찾는다
+    const detected = detectCuisines(kw);
+    if (detected.length) {
+      setCuisines((c) => [...new Set([...c, ...detected])]);
+      setDetectedNote(`'${kw.trim()}'을(를) ${detected.map((d) => CUISINE_LABEL[d]).join(', ')}(으)로 찾았어요.`);
+      kw = '';
+      setKeyword('');
+    } else {
+      setDetectedNote(null);
+    }
     try {
       const center = await resolveCenter(coords ? { ...coords } : { region: region.trim() });
       const groups = Object.values(CAT_GROUPS).flat();
       const res = await Promise.all(groups.map((group) =>
         searchNearby({ group, lat: center.lat, lng: center.lng, radius: 2000, pages: 3, sort: 'distance', keyword: kw.trim() || undefined })));
-      const { list, chainExcluded } = filterLocal(res.flat(), excludedIds(store));
-      const popular = await popularMap(center.area, list, purpose);
-      setSearched({ center, places: list, chains: chainExcluded, keyword: kw.trim(), popular });
+      const kakao = filterLocal(res.flat(), excludedIds(store));
+      // 네이버 인기 가게 중 카카오 목록에 없던 곳을 더한다
+      const { popular, discovered } = await naverEnrich(center.area, center, kakao.list, { purpose, radius: 2000 });
+      const extra = filterLocal(discovered, excludedIds(store));
+      const list = [...kakao.list, ...extra.list];
+      const chainExcluded = kakao.chainExcluded + extra.chainExcluded;
+      // 가까운 가게부터 60곳의 행정동을 확인해 월계1동 가게를 표시한다
+      const near = [...list].sort((a, b) => distanceM(center, a) - distanceM(center, b));
+      const head = await annotateDong(near.slice(0, 60));
+      setSearched({ center, places: [...head, ...near.slice(60)], chains: chainExcluded, keyword: kw.trim(), popular });
     } catch (e) {
       Alert.alert('검색하지 못했어요', e instanceof Error ? e.message : '잠시 후 다시 시도해 주세요.');
     } finally {
@@ -85,29 +108,47 @@ export default function Explore() {
       .filter((r) => r.d <= radius)
       .filter((r) => cat === 'ALL' || r.p.category === cat)
       .filter((r) => !purposeObj || (r.hit && !r.avoid))
-      .filter((r) => !openNow || r.state === 'open');
+      .filter((r) => !cuisines.length || cuisinesOf(r.p).some((c) => cuisines.includes(c)))
+      .filter((r) => !openNow || r.state === 'open')
+      .filter((r) => !localPay || Boolean(store.placeInfo[r.p.id]?.payments?.length))
+      .filter((r) => !focusOnly || isFocus(r.p));
     const fit = (r: (typeof rows)[number]) =>
-      (r.hit ? 30 : 0) + (r.hot ? 20 : 0) + (store.isSaved(r.p.id) ? 10 : 0) + (r.sum ? r.sum.avg * 4 : 0) - r.d / 100;
+      (r.hit ? 30 : 0) + (r.hot ? 20 : 0) + (isFocus(r.p) ? 20 : 0) + (store.isSaved(r.p.id) ? 10 : 0) + (r.sum ? r.sum.avg * 4 : 0) - r.d / 100;
     return rows.sort((a, b) =>
       sort === 'distance' ? a.d - b.d
         : sort === 'popular' ? Number(Boolean(b.hot)) - Number(Boolean(a.hot)) || trustScore(b.sum) - trustScore(a.sum) || a.d - b.d
           : sort === 'trust' ? trustScore(b.sum) - trustScore(a.sum) || a.d - b.d
             : fit(b) - fit(a));
-  }, [searched, store, radius, cat, purposeObj, openNow, sort]);
+  }, [searched, store, radius, cat, purposeObj, cuisines, openNow, localPay, focusOnly, sort]);
+
+  // 사장님 리포트용 노출 기록 (검색 한 번당 한 번)
+  const logShown = store.logShown;
+  const searchKey = useMemo(() => `exp:${Math.random().toString(36).slice(2)}`, [searched]);
+  useEffect(() => {
+    if (searched && results.length) logShown(results.slice(0, 40).map((r) => r.p.id), searchKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchKey]);
 
   const active: { label: string; clear: () => void }[] = [
     ...(cat !== 'ALL' ? [{ label: CATEGORY_LABEL[cat], clear: () => setCat('ALL') }] : []),
     ...(purposeObj ? [{ label: purposeObj.label, clear: () => setPurpose(undefined) }] : []),
+    ...cuisines.map((c) => ({ label: CUISINE_LABEL[c], clear: () => setCuisines((x) => x.filter((y) => y !== c)) })),
     ...(openNow ? [{ label: '영업 중', clear: () => setOpenNow(false) }] : []),
+    ...(localPay ? [{ label: '지역화폐', clear: () => setLocalPay(false) }] : []),
+    ...(focusOnly ? [{ label: FOCUS_DONG, clear: () => setFocusOnly(false) }] : []),
     ...(searched?.keyword ? [{ label: `'${searched.keyword}'`, clear: () => { setKeyword(''); search(''); } }] : []),
   ];
-  const reset = () => { setCat('ALL'); setPurpose(undefined); setOpenNow(false); setRadius(1000); setSort('distance'); };
+  const reset = () => { setCat('ALL'); setPurpose(undefined); setCuisines([]); setOpenNow(false); setLocalPay(false); setFocusOnly(false); setRadius(1000); setSort('distance'); };
 
   // 결과 없음: 조건 하나씩만 완화한 대안 (S-DTPXYH)
   const alternatives: { label: string; run: () => void }[] = [
     ...(radius < 2000 ? [{ label: `반경 ${km(RADII[RADII.indexOf(radius) + 1])}로 넓히기`, run: () => setRadius(RADII[RADII.indexOf(radius) + 1]) }] : []),
     ...(openNow ? [{ label: '영업시간 미확인 가게도 보기', run: () => setOpenNow(false) }] : []),
+    ...(localPay ? [{ label: '결제수단 조건 빼기', run: () => setLocalPay(false) }] : []),
+    ...(focusOnly ? [{ label: `${FOCUS_DONG} 밖 가게도 보기`, run: () => setFocusOnly(false) }] : []),
     ...(purposeObj ? [{ label: '방문 목적 조건 빼기', run: () => setPurpose(undefined) }] : []),
+    ...(cuisines.length > 1 ? [{ label: `${CUISINE_LABEL[cuisines[0]]}만 보기`, run: () => setCuisines([cuisines[0]]) }] : []),
+    ...(cuisines.length ? [{ label: '음식 종류 조건 빼기', run: () => setCuisines([]) }] : []),
     ...(cat !== 'ALL' ? (['FOOD', 'CAFE', 'SPOT'] as Category[]).filter((c) => c !== cat).map((c) => ({ label: `${CATEGORY_LABEL[c]} 보기`, run: () => setCat(c) })) : []),
     ...(searched?.keyword ? [{ label: '키워드 없이 찾기', run: () => { setKeyword(''); search(''); } }] : []),
   ];
@@ -120,7 +161,7 @@ export default function Explore() {
           value={coords ? '현재 위치 사용 중' : region}
           editable={!coords}
           onChangeText={setRegion}
-          placeholder="동네·상권 (예: 망원동)"
+          placeholder="동네·역 (예: 월계1동, 석계역)"
           placeholderTextColor={colors.muted}
         />
         {coords ? <Btn label="직접 입력" onPress={() => setCoords(null)} /> : <Btn label="현재 위치" onPress={useMyLocation} />}
@@ -130,7 +171,7 @@ export default function Explore() {
           style={[inputStyle, { flex: 1 }]}
           value={keyword}
           onChangeText={setKeyword}
-          placeholder="음식 종류·가게 이름 (선택)"
+          placeholder="중국집, 초밥, 가게 이름 (선택)"
           placeholderTextColor={colors.muted}
           returnKeyType="search"
           onSubmitEditing={() => search()}
@@ -146,6 +187,14 @@ export default function Explore() {
       <View style={s.chips}>
         {RADII.map((r) => <Chip key={r} label={km(r)} on={radius === r} onPress={() => setRadius(r)} />)}
         <Chip label="영업 중" on={openNow} onPress={() => setOpenNow(!openNow)} />
+        <Chip label="지역화폐·온누리" on={localPay} onPress={() => setLocalPay(!localPay)} />
+        <Chip label={`📍 ${FOCUS_DONG}만`} on={focusOnly} onPress={() => setFocusOnly(!focusOnly)} />
+      </View>
+      <View style={s.chips}>
+        {CUISINES.map((c) => (
+          <Chip key={c.code} label={c.label} on={cuisines.includes(c.code)}
+            onPress={() => setCuisines((x) => (x.includes(c.code) ? x.filter((y) => y !== c.code) : [...x, c.code]))} />
+        ))}
       </View>
       <View style={s.chips}>
         {SEARCH_PURPOSES.map((p) => (
@@ -172,6 +221,7 @@ export default function Explore() {
             ))}
             {active.length > 0 && <Pressable onPress={reset}><Text style={s.link}>전체 초기화</Text></Pressable>}
           </View>
+          {detectedNote && <Text style={s.hint}>{detectedNote}</Text>}
           {searched.chains > 0 && <Text style={s.hint}>프랜차이즈 {searched.chains}곳은 동네 가게를 위해 제외했어요.</Text>}
 
           {results.length === 0 ? (
@@ -192,7 +242,10 @@ export default function Explore() {
                     <Text style={s.name}>{p.name}</Text>
                     <Text style={s.meta}>{p.categoryName}, {d <= 1000 ? `도보 ${walkMinutes(d)}분` : `${(d / 1000).toFixed(1)}km`}</Text>
                     <View style={s.tags}>
+                      {isFocus(p) && <Tag label={`📍 ${FOCUS_DONG}`} tone="route" />}
                       {hot && <Tag label="🔥 인기" />}
+                      {store.placeInfo[p.id]?.perk && <Tag label={perkActive(store.placeInfo[p.id]) ? '🎁 지금 혜택' : '🎁 혜택'} tone="done" />}
+                      {(store.placeInfo[p.id]?.payments ?? []).map((k) => <Tag key={k} label={paymentLabel(k)} tone="route" />)}
                       <Tag label={OPEN_LABEL[state]} tone={state === 'open' ? 'done' : state === 'closed' ? 'rose' : 'muted'} />
                       {sum && <Tag label={`★${sum.avg.toFixed(1)} 후기 ${sum.count}`} tone="route" />}
                       {sum?.verified ? <Tag label={`인증 ${sum.verified}`} tone="done" /> : null}

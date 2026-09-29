@@ -1,11 +1,14 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { dongOf, FOCUS_DONG } from '../../lib/focus';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { naverMapUrl } from '../../api/naver';
 import { PlaceHero } from '../../components/PlaceThumb';
 import { Btn, cardStyle, Section, Tag } from '../../components/ui';
 import { hasCoord, kakaoRouteUrl } from '../../lib/geo';
-import { closedDaysText, hoursText, OPEN_LABEL, openState } from '../../lib/hours';
+import { closedDaysText, hoursText, OPEN_LABEL, openState, paymentLabel, perkActive, perkWindow } from '../../lib/hours';
+import { residentBadge } from '../../lib/local';
 import { monthLabel, parsePlace } from '../../lib/nav';
 import { summarize } from '../../lib/reviews';
 import { useAppStore } from '../../store/AppStore';
@@ -17,6 +20,13 @@ export default function PlaceDetail() {
   const { p } = useLocalSearchParams<{ p: string }>();
   const place = parsePlace(p);
   const store = useAppStore();
+  const [dong, setDong] = useState<string | null>(place?.dong ?? null);
+  useEffect(() => {
+    let alive = true;
+    const pl = parsePlace(p);
+    if (pl && !pl.dong) dongOf(pl).then((d) => { if (alive) setDong(d); });
+    return () => { alive = false; };
+  }, [p]);
   if (!place) return <View style={s.center}><Text>장소 정보를 읽지 못했어요. 이전 화면에서 다시 선택해 주세요.</Text></View>;
 
   const pl: Place = place;
@@ -41,11 +51,12 @@ export default function PlaceDetail() {
   }
 
   const rows: [string, string | undefined][] = [
-    ['주소', pl.address],
+    ['주소', pl.address + (dong ? ` (${dong})` : '')],
     ['영업시간', hoursText(info)],
     ['휴무일', closedDaysText(info)],
     ['대표 메뉴·가격', info?.menu],
     ['소개', info?.intro],
+    ['결제수단', info?.payments?.length ? info.payments.map(paymentLabel).join(', ') : undefined],
     ['전화', pl.phone],
   ];
 
@@ -63,12 +74,21 @@ export default function PlaceDetail() {
           <Text style={s.name}>{pl.name}</Text>
           <Text style={s.muted}>{CATEGORY_LABEL[pl.category]}, {pl.categoryName}</Text>
           <View style={s.tags}>
+            {dong === FOCUS_DONG && <Tag label={`📍 ${FOCUS_DONG} 동네 가게`} tone="route" />}
             <Tag label={OPEN_LABEL[state]} tone={state === 'open' ? 'done' : state === 'closed' ? 'rose' : 'muted'} />
             {info && <Tag label="운영자 확인 정보" tone="route" />}
             {sum && <Tag label={`후기 ${sum.count} (인증 ${sum.verified})`} tone="route" />}
           </View>
         </View>
       </View>
+
+      {info?.perk && (
+        <View style={[s.perk, perkActive(info) && s.perkOn]}>
+          <Text style={s.perkTitle}>🎁 동네 혜택{perkActive(info) && perkWindow(info) ? ' · 지금 혜택 시간' : ''}</Text>
+          <Text style={s.body}>{info.perk}</Text>
+          <Text style={s.muted}>{perkWindow(info) ? `적용 시간 ${perkWindow(info)}` : '영업시간 내내 적용'}, 결제 전 "앱 보고 왔어요"라고 말해 주세요.</Text>
+        </View>
+      )}
 
       <View style={s.actions}>
         <Btn label={saved ? '저장됨' : '저장'} kind={saved ? 'primary' : 'ghost'} onPress={() => store.toggleSave(pl)} style={{ flex: 1 }} />
@@ -126,6 +146,7 @@ export default function PlaceDetail() {
         {reviews.map((r) => (
           <View key={r.id} style={cardStyle}>
             <View style={s.tags}>
+              {residentBadge(r, store.home, store.reviews) && <Tag label="🏠 주민 추천" tone="rose" />}
               {r.verified ? <Tag label="방문 인증" tone="done" /> : <Tag label="일반 후기" tone="muted" />}
               <Tag label={`${'★'.repeat(r.satisfaction)}${'☆'.repeat(5 - r.satisfaction)}`} />
             </View>
@@ -181,5 +202,8 @@ const s = StyleSheet.create({
   rowKey: { width: 92, fontSize: 13, color: colors.muted },
   rowVal: { flex: 1, fontSize: 14, color: colors.ink, lineHeight: 20 },
   unknown: { color: colors.muted, fontStyle: 'italic' },
+  perk: { backgroundColor: colors.doneSoft, borderRadius: 14, padding: 14, marginBottom: 12 },
+  perkOn: { borderWidth: 2, borderColor: colors.done },
+  perkTitle: { fontSize: 14, fontWeight: '800', color: colors.done, marginBottom: 4 },
   link: { fontSize: 13, color: colors.route, fontWeight: '600', marginTop: 12 },
 });

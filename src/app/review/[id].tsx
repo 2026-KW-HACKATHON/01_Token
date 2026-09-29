@@ -82,6 +82,7 @@ export default function WriteReview() {
           const r = store.saveReview({
             placeId: place!.id, placeName: place!.name, satisfaction: Number(satisfaction), visitedMonth: visitedMonth!,
             mood: mood!, priceFeel: priceFeel!, companion: companion!, revisit: revisit === 'y', text: text.trim(), verified,
+            lat: place!.lat, lng: place!.lng,
           }, existing?.id);
           if (r === 'duplicate') {
             Alert.alert('이미 쓴 후기가 있어요', `${monthLabel(visitedMonth!)} 방문 후기가 이미 있어요. 장소 화면에서 기존 후기를 수정하거나 방문 시점을 다르게 골라 주세요.`);

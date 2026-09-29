@@ -1,6 +1,10 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Location from 'expo-location';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { regionName } from '../../api/kakao';
 import { Btn, cardStyle, Chip, Section, Tag } from '../../components/ui';
-import { closedDaysText, hoursText } from '../../lib/hours';
+import { FOCUS_DONG } from '../../lib/focus';
+import { closedDaysText, hoursText, paymentLabel, perkWindow } from '../../lib/hours';
+import { HOME_RADIUS_M, homeVerifiedCount, isResident, RESIDENT_MIN_VERIFIED, STAT_LABEL, statSummary } from '../../lib/local';
 import { monthLabel, openPlace } from '../../lib/nav';
 import { useAppStore } from '../../store/AppStore';
 import { colors } from '../../theme';
@@ -14,7 +18,9 @@ const date = (t: number) => { const d = new Date(t); return `${d.getMonth() + 1}
 
 function infoLines(i: PlaceInfo | null) {
   if (!i) return '등록된 정보 없음';
-  return [`영업 ${hoursText(i) ?? '미입력'}`, `휴무 ${closedDaysText(i) ?? '미입력'}`, i.menu && `메뉴 ${i.menu}`, i.intro && `소개 ${i.intro}`]
+  return [`영업 ${hoursText(i) ?? '미입력'}`, `휴무 ${closedDaysText(i) ?? '미입력'}`, i.menu && `메뉴 ${i.menu}`, i.intro && `소개 ${i.intro}`,
+    i.payments?.length && `결제 ${i.payments.map(paymentLabel).join(', ')}`,
+    i.perk && `혜택 ${i.perk}${perkWindow(i) ? ` (${perkWindow(i)})` : ''}`]
     .filter(Boolean).join('\n');
 }
 
@@ -39,9 +45,51 @@ export default function Manage() {
     </ScrollView>
   );
 
+  async function setMyHome() {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('위치 권한이 꺼져 있어요', '내 동네는 현재 위치로만 설정할 수 있어요.');
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({});
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const name = (await regionName(lat, lng)) ?? '내 동네';
+      store.setHome({ lat, lng, name, setAt: Date.now() });
+    } catch {
+      Alert.alert('현재 위치를 확인하지 못했어요', '잠시 후 다시 시도해 주세요.');
+    }
+  }
+
   function userPanel() {
+    const count = homeVerifiedCount(store.home, store.reviews);
+    const resident = isResident(store.home, store.reviews);
     return (
       <>
+        <Section title="내 동네">
+          <View style={cardStyle}>
+            {store.home ? (
+              <>
+                <View style={s.between}>
+                  <Text style={s.name}>{store.home.name}</Text>
+                  {resident ? <Tag label="🏠 동네 주민" tone="rose" /> : <Tag label={`주민 인증 ${count}/${RESIDENT_MIN_VERIFIED}`} tone="muted" />}
+                </View>
+                <Text style={s.muted}>
+                  {resident
+                    ? `반경 ${HOME_RADIUS_M / 1000}km 안 가게에 남긴 방문 인증 후기에 '주민 추천' 배지가 붙어요.`
+                    : `반경 ${HOME_RADIUS_M / 1000}km 안 가게에서 방문 인증 후기를 ${RESIDENT_MIN_VERIFIED - count}개 더 남기면 동네 주민이 돼요.`}
+                </Text>
+                <Btn label="현재 위치로 다시 설정" onPress={setMyHome} style={{ marginTop: 10 }} />
+              </>
+            ) : (
+              <>
+                <Text style={s.muted}>내 동네를 설정하고 동네 가게를 방문 인증하면, 내 후기에 '주민 추천' 배지가 붙어요.</Text>
+                <Btn label="현재 위치를 내 동네로 설정" kind="primary" onPress={setMyHome} style={{ marginTop: 10 }} />
+              </>
+            )}
+          </View>
+        </Section>
         <Section title={`내 후기 ${store.reviews.length}`}>
           {store.reviews.length === 0 && <Text style={s.muted}>장소 상세 화면에서 후기를 남길 수 있어요.</Text>}
           {store.reviews.map((r) => (
@@ -83,6 +131,30 @@ export default function Manage() {
           ))}
         </Section>
         {approved.length > 0 && (
+          <Section title="가게 리포트">
+            {approved.map((a) => {
+              const rows = statSummary(store.events[a.place.id]);
+              const empty = rows.every((r) => r.total === 0);
+              return (
+                <View key={a.id} style={cardStyle}>
+                  <Text style={s.name}>{a.place.name}</Text>
+                  <View style={s.grid}>
+                    {rows.map((r) => (
+                      <View key={r.t} style={s.stat}>
+                        <Text style={s.statVal}>{r.week}</Text>
+                        <Text style={s.muted}>{STAT_LABEL[r.t]} (7일)</Text>
+                        <Text style={s.muted}>누적 {r.total}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  {empty && <Text style={[s.muted, { marginTop: 8 }]}>아직 기록이 없어요. 영업시간과 혜택을 등록하면 추천에 더 자주 나와요.</Text>}
+                </View>
+              );
+            })}
+            <Text style={s.hint}>지금은 이 기기에서 일어난 노출·저장·코스 담기·방문 인증만 집계돼요.</Text>
+          </Section>
+        )}
+        {approved.length > 0 && (
           <Section title="정보 변경 이력">
             {store.infoEdits.filter((e) => approved.some((a) => a.place.id === e.placeId)).map((e) => (
               <View key={e.id} style={cardStyle}>
@@ -106,7 +178,10 @@ export default function Manage() {
     const pendingEdits = store.infoEdits.filter((e) => e.status === 'pending');
     const openReports = store.reports.filter((r) => r.status === 'received');
     const hidden = Object.entries(store.hidden);
+    const stops = store.courses.flatMap((c) => c.stops.map((st) => st.place)).filter((p) => p.dong);
+    const focusRate = stops.length ? Math.round((stops.filter((p) => p.dong === FOCUS_DONG).length / stops.length) * 100) : null;
     const stats: [string, string][] = [
+      [`코스 속 ${FOCUS_DONG} 가게`, focusRate == null ? '기록 없음' : `${focusRate}%`],
       ['코스', `${store.courses.length} (완료 ${store.courses.filter((c) => c.status === 'done').length})`],
       ['저장 장소', `${store.saved.length}`],
       ['후기', `${store.reviews.length} (인증 ${store.reviews.filter((r) => r.verified).length})`],

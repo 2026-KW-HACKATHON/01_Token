@@ -11,6 +11,7 @@ export interface Place {
   lat: number;
   lng: number;
   url: string; // 카카오맵 장소 페이지
+  dong?: string; // 행정동 (예: 월계1동), 확인된 경우만
 }
 
 /** 추천 조건 (F-OZVLQS). 비어 있는 항목은 '상관없음'으로 건너뛴 것 */
@@ -19,6 +20,8 @@ export interface Prefs {
   lat?: number;
   lng?: number;
   purpose?: string; // PurposeKey
+  age?: string; // 10s~50s
+  cuisines?: string[]; // CuisineCode, 복수 선택
   mood?: string;
   budget?: string;
   timeSlot?: string;
@@ -42,6 +45,7 @@ export interface CourseStop {
   place: Place;
   time?: string;
   memo?: string;
+  stampedAt?: number; // 동네 스탬프 (F-GBSOED)
 }
 
 export type CourseStatus = 'planning' | 'done';
@@ -72,6 +76,8 @@ export interface Review {
   revisit: boolean;
   text: string;
   verified: boolean;
+  lat?: number;
+  lng?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -94,6 +100,25 @@ export interface PlaceInfo {
   closedDays: number[]; // 0=일 ~ 6=토
   menu?: string;
   intro?: string;
+  perk?: string; // 동네 혜택 (F-DHUPAG)
+  perkStart?: string; // HH:MM, 없으면 항상
+  perkEnd?: string;
+  payments?: string[]; // local | onnuri | zeropay (F-DEZTVN)
+}
+
+/** 내 동네 (F-WQKJMS) */
+export interface Home {
+  lat: number;
+  lng: number;
+  name: string;
+  setAt: number;
+}
+
+/** 사장님 리포트용 가게 이벤트 (F-WLEWFK) */
+export type StatType = 'shown' | 'saved' | 'coursed' | 'verified';
+export interface StatEvent {
+  t: StatType;
+  at: number;
 }
 
 export type ReviewStatus = 'pending' | 'approved' | 'rejected';

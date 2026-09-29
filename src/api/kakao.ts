@@ -124,3 +124,18 @@ export function searchImage(query: string): Promise<SearchImage | null> {
   imageCache.set(query, req);
   return req;
 }
+
+/** 이름과 대략적인 좌표로 카카오 장소 하나 찾기 (네이버에서 발견한 가게를 카카오 장소로 변환할 때) */
+export async function findPlaceNear(name: string, lat: number, lng: number): Promise<Place | null> {
+  try {
+    const docs = await call<KakaoDoc>('/search/keyword.json', { query: name, x: lng, y: lat, radius: 500, sort: 'distance', size: 5 });
+    const n = name.replace(/\s/g, '');
+    const hit = docs.find((d) => {
+      const k = d.place_name.replace(/\s/g, '');
+      return k.includes(n) || n.includes(k);
+    });
+    return hit ? toPlace(hit) : null;
+  } catch {
+    return null;
+  }
+}
