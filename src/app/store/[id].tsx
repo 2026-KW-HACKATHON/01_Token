@@ -68,7 +68,7 @@ export default function StoreDetail() {
 
       <View style={[cardStyle, { backgroundColor: colors.doneSoft, borderColor: colors.doneSoft }]}>
         <Text style={s.perkTitle}>🎟 걷기 쿠폰 혜택</Text>
-        <Text style={s.body}>{store.perk}</Text>
+        <Text style={s.perk}>{store.perk}</Text>
         <View style={s.tags}>
           {store.minOrder ? <Tag label={`최소 ${won(store.minOrder)}`} tone="muted" /> : null}
           <Tag label={store.validHours ? `사용 ${store.validHours}` : '영업시간 내 사용'} tone="muted" />
@@ -89,8 +89,8 @@ export default function StoreDetail() {
         <View style={cardStyle}>
           {store.menus.map((m) => (
             <View key={m.name} style={s.menuRow}>
-              <Text style={s.body}>{m.name}</Text>
-              <Text style={s.body}>{won(m.price)}</Text>
+              <Text style={[s.body, { flex: 1 }]}>{m.name}</Text>
+              <Text style={[s.body, { fontWeight: '700' }]}>{won(m.price)}</Text>
             </View>
           ))}
         </View>
@@ -128,12 +128,13 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   notice: { backgroundColor: '#FFF4D6', borderRadius: 12, padding: 12 },
   noticeText: { color: '#7A5600', fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  name: { fontSize: 24, fontWeight: '800', color: colors.ink, letterSpacing: -0.3 },
+  name: { fontSize: 30, lineHeight: 39, fontWeight: '800', color: colors.ink, letterSpacing: -1 },
   meta: { fontSize: 13, color: colors.muted },
   perkTitle: { fontSize: 14, fontWeight: '800', color: colors.done, marginBottom: 4 },
+  perk: { fontSize: 26, lineHeight: 35, fontWeight: '800', color: colors.ink, letterSpacing: -0.7, marginVertical: 10 },
   body: { fontSize: 15, color: colors.ink, lineHeight: 21 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   hint: { fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 17 },
-  menuRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.line },
-  map: { height: 180, borderRadius: 16 },
+  menuRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
+  map: { height: 200, borderRadius: 24 },
 });
