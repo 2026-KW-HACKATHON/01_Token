@@ -37,6 +37,7 @@ export default function PerkMap() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={s.wrap}>
+      <Text style={s.title}>걸어서 모은 보상,{'\n'}어디서 써볼까요?</Text>
       <View style={s.notice}>
         <Text style={s.noticeText}>시연용 가상 가게예요. 실제 매장·제휴·사용 가능한 쿠폰이 아니에요.</Text>
       </View>
@@ -112,11 +113,12 @@ const s = StyleSheet.create({
   wrap: { padding: 20, paddingBottom: 48, gap: 10 },
   notice: { backgroundColor: '#FFF4D6', borderRadius: 12, padding: 12 },
   noticeText: { color: '#7A5600', fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  map: { height: 240, borderRadius: 16 },
+  title: { fontSize: 27, lineHeight: 36, fontWeight: '800', color: colors.ink, letterSpacing: -0.8, marginBottom: 12 },
+  map: { height: 260, borderRadius: 24 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  balance: { fontSize: 13, color: colors.muted, marginTop: 4 },
+  balance: { fontSize: 13, lineHeight: 20, fontWeight: '600', color: colors.rose, backgroundColor: colors.doneSoft, padding: 16, borderRadius: 16, marginVertical: 8 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  name: { fontSize: 16, fontWeight: '700', color: colors.ink, flex: 1 },
+  name: { fontSize: 19, fontWeight: '800', color: colors.ink, flex: 1, letterSpacing: -0.4 },
   more: { fontSize: 13, color: colors.muted },
   meta: { fontSize: 13, color: colors.muted, marginTop: 2 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },

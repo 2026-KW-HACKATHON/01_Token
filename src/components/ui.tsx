@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { colors } from '../theme';
 
@@ -10,11 +10,12 @@ export function Btn({ label, onPress, kind = 'ghost', disabled, style }: {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled) }}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [s.btn, s[kind], disabled && s.disabled, pressed && { opacity: 0.7 }, style]}
     >
-      <Text style={[s.btnText, kind === 'primary' && { color: '#fff' }, kind === 'danger' && { color: colors.rose }]}>
+      <Text style={[s.btnText, kind === 'primary' && { color: '#fff' }, kind === 'danger' && { color: colors.danger }]}>
         {label}
       </Text>
     </Pressable>
@@ -76,23 +77,23 @@ export function Tag({ label, tone = 'rose' }: { label: string; tone?: 'rose' | '
 }
 
 const s = StyleSheet.create({
-  btn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  btn: { minHeight: 48, paddingVertical: 14, paddingHorizontal: 18, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   primary: { backgroundColor: colors.rose },
   ghost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  danger: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.roseSoft },
-  disabled: { opacity: 0.4 },
-  btnText: { fontSize: 15, fontWeight: '600', color: colors.ink },
+  danger: { backgroundColor: '#FFF3F3', borderWidth: 1, borderColor: '#F2D9DD' },
+  disabled: { opacity: 0.48 },
+  btnText: { fontSize: 15, fontWeight: '700', color: colors.ink },
   group: { marginBottom: 22 },
   groupLabel: { fontSize: 15, fontWeight: '700', color: colors.ink, marginBottom: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  chip: { minHeight: 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   chipOn: { backgroundColor: colors.rose, borderColor: colors.rose },
   chipMuted: { borderStyle: 'dashed' },
   chipMutedOn: { backgroundColor: colors.line, borderColor: colors.muted },
-  chipText: { fontSize: 14, color: colors.ink },
+  chipText: { fontSize: 13, fontWeight: '600', color: colors.ink },
   hint: { fontSize: 12, color: colors.muted, marginTop: -6, marginBottom: 8 },
-  section: { fontSize: 17, fontWeight: '800', color: colors.ink },
-  tag: { fontSize: 12, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, overflow: 'hidden' },
+  section: { fontSize: 19, fontWeight: '800', letterSpacing: -0.4, color: colors.ink },
+  tag: { fontSize: 12, fontWeight: '600', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, overflow: 'hidden' },
 });
 
 export function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
@@ -117,11 +118,25 @@ export function Section({ title, children, right }: { title: string; children: R
   );
 }
 
+export function Disclosure({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={[cardStyle, { padding: 16 }]}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)}
+        style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Text style={{ color: colors.ink, fontSize: 15, fontWeight: '700' }}>{title}</Text>
+        <Text style={{ color: colors.muted, fontSize: 13 }}>{open ? '접기 −' : '펼치기 +'}</Text>
+      </Pressable>
+      {open && <View style={{ marginTop: 12 }}>{children}</View>}
+    </View>
+  );
+}
+
 export const inputStyle = {
   backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: 12,
   paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: colors.ink, minHeight: 44,
 } as const;
 
 export const cardStyle = {
-  backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: colors.line,
+  backgroundColor: colors.card, borderRadius: 24, padding: 20, marginBottom: 10, borderWidth: 1, borderColor: colors.line,
 } as const;

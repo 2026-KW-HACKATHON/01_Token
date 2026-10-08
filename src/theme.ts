@@ -1,17 +1,19 @@
 import type { Category } from './types';
 
 export const colors = {
-  paper: '#FBF8FF',
+  paper: '#F4F7F4',
   card: '#FFFFFF',
-  ink: '#22223B',
-  muted: '#77738A',
-  line: '#E7E1F0',
-  rose: '#C0396B',
-  roseSoft: '#F8E3EC',
-  route: '#3A6EA5',
-  routeSoft: '#E4EDF7',
-  done: '#4F7D52',
-  doneSoft: '#E4F0E4',
+  ink: '#173D30',
+  muted: '#63766D',
+  line: '#DEE7DF',
+  rose: '#236C4C',
+  roseSoft: '#E6F2E8',
+  route: '#306A72',
+  routeSoft: '#E7F2F3',
+  done: '#236C4C',
+  doneSoft: '#E6F2E8',
+  accent: '#D4F479',
+  danger: '#AD3845',
 };
 
 export const CATEGORY_LABEL: Record<Category, string> = {

@@ -43,14 +43,14 @@ export function FeaturedStore({ placement }: { placement: string }) {
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: colors.ink, borderRadius: 16, padding: 16 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  card: { backgroundColor: colors.card, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: colors.line },
+  head: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   badge: {
-    fontSize: 11, fontWeight: '800', color: colors.ink, backgroundColor: '#FFE08A',
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden',
+    fontSize: 11, fontWeight: '700', color: colors.ink, backgroundColor: colors.accent,
+    paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, overflow: 'hidden',
   },
-  kicker: { fontSize: 12, fontWeight: '700', color: '#C9C5D8' },
-  name: { fontSize: 18, fontWeight: '800', color: '#fff', marginTop: 8 },
-  perk: { fontSize: 14, color: '#fff', marginTop: 4 },
-  meta: { fontSize: 12, color: '#C9C5D8', marginTop: 6 },
+  kicker: { fontSize: 12, fontWeight: '600', color: colors.muted },
+  name: { fontSize: 21, fontWeight: '800', color: colors.ink, marginTop: 16, letterSpacing: -0.6 },
+  perk: { fontSize: 16, lineHeight: 24, fontWeight: '700', color: colors.rose, marginTop: 8 },
+  meta: { fontSize: 12, color: colors.muted, marginTop: 16 },
 });
