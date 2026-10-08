@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { closePopup, tryOpenPopup } from '../lib/popupGate';
 import { dateKeyOf } from '../lib/steps';
 import { useWalk } from '../store/WalkStore';
 import { colors, STORE_ICON } from '../theme';
@@ -33,10 +34,15 @@ export function AdPopup({ trigger = 0 }: { trigger?: number }) {
     const t = setTimeout(async () => {
       let hidden: string | null = null;
       try { hidden = await AsyncStorage.getItem(KEY); } catch { /* 무시 */ }
-      if (alive && hidden !== dateKeyOf(new Date())) setOpen(true);
+      // 보상 알림 등 다른 팝업이 떠 있으면 이번에는 광고를 띄우지 않는다
+      if (alive && hidden !== dateKeyOf(new Date()) && tryOpenPopup('ad')) setOpen(true);
     }, 700);
     return () => { alive = false; clearTimeout(t); };
   }, [trigger]);
+
+  useEffect(() => {
+    if (!open) closePopup('ad');
+  }, [open]);
 
   useEffect(() => {
     if (open) logStore([st.id], 'shown', `popup:${st.id}:${dateKeyOf(new Date())}`);
