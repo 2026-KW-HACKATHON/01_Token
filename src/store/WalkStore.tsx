@@ -14,11 +14,19 @@ const KEY = '@walk/state/v1';
 
 export interface StepLog { at: string; trigger: string; status: string; steps: number | null; demo: boolean }
 
+/**
+ * 제휴 가게 성과 이벤트. 걸음수·보상 잔액 등 걷기 데이터는 넣지 않는다(가게용 집계와 분리).
+ * shown: 지도·목록·추천 카드 노출, view: 가게 상세 조회, exchanged: 쿠폰 교환, used: 매장 사용 확인
+ */
+export type StoreEventType = 'shown' | 'view' | 'exchanged' | 'used';
+export interface StoreEvent { t: StoreEventType; at: string }
+
 interface Saved {
   rewards: RewardState;
   demo: boolean;
   demoSteps: number;
   log: StepLog[];
+  storeEvents: Record<string, StoreEvent[]>;
 }
 
 interface WalkStoreValue extends Saved {
@@ -32,9 +40,19 @@ interface WalkStoreValue extends Saved {
   exchangeFor: (storeId: string, validDays?: number) => Coupon | null;
   useCouponById: (id: string) => boolean;
   resetWalk: () => void;
+  logStore: (storeIds: string[], t: StoreEventType, dedupeKey?: string) => void;
+  resetStoreEvents: () => void;
 }
 
-const initial: Saved = { rewards: emptyState(), demo: false, demoSteps: 990, log: [] };
+const initial: Saved = { rewards: emptyState(), demo: false, demoSteps: 990, log: [], storeEvents: {} };
+const MAX_STORE_EVENTS = 500;
+
+function addStoreEvents(cur: Record<string, StoreEvent[]>, ids: string[], t: StoreEventType) {
+  const at = new Date().toISOString();
+  const next = { ...cur };
+  ids.forEach((id) => { next[id] = [...(next[id] ?? []), { t, at }].slice(-MAX_STORE_EVENTS); });
+  return next;
+}
 const Ctx = createContext<WalkStoreValue | null>(null);
 
 export function WalkStoreProvider({ children }: { children: React.ReactNode }) {
@@ -108,7 +126,7 @@ export function WalkStoreProvider({ children }: { children: React.ReactNode }) {
     const res = exchange(ref.current.rewards, storeId, `W${Date.now().toString(36).toUpperCase()}`, new Date(), validDays);
     if (res.coupon) {
       ref.current = { ...ref.current, rewards: res.state };
-      setSaved((s) => ({ ...s, rewards: res.state }));
+      setSaved((s) => ({ ...s, rewards: res.state, storeEvents: addStoreEvents(s.storeEvents, [storeId], 'exchanged') }));
     }
     return res.coupon;
   }, []);
@@ -116,21 +134,44 @@ export function WalkStoreProvider({ children }: { children: React.ReactNode }) {
   const useCouponById = useCallback((id: string) => {
     const res = useCoupon(ref.current.rewards, id);
     if (res.ok) {
+      const storeId = res.state.coupons.find((c) => c.id === id)?.storeId;
       ref.current = { ...ref.current, rewards: res.state };
-      setSaved((s) => ({ ...s, rewards: res.state }));
+      setSaved((s) => ({
+        ...s, rewards: res.state,
+        storeEvents: storeId ? addStoreEvents(s.storeEvents, [storeId], 'used') : s.storeEvents,
+      }));
     }
     return res.ok;
   }, []);
 
+  // 같은 화면을 다시 그릴 때 노출이 중복 집계되지 않도록 dedupeKey당 한 번만 기록
+  const seenKeys = useRef(new Set<string>());
+  const logStore = useCallback((storeIds: string[], t: StoreEventType, dedupeKey?: string) => {
+    if (!storeIds.length) return;
+    if (dedupeKey) {
+      if (seenKeys.current.has(dedupeKey)) return;
+      seenKeys.current.add(dedupeKey);
+    }
+    setSaved((s) => ({ ...s, storeEvents: addStoreEvents(s.storeEvents, storeIds, t) }));
+  }, []);
+
+  // 걷기 기록만 초기화(가게 성과 기록은 유지)
   const resetWalk = useCallback(() => {
-    ref.current = initial;
-    setSaved(initial);
+    const keep = ref.current.storeEvents;
+    const next = { ...initial, storeEvents: keep };
+    ref.current = next;
+    setSaved(next);
     refresh('초기화');
   }, [refresh]);
 
+  const resetStoreEvents = useCallback(() => {
+    seenKeys.current.clear();
+    setSaved((s) => ({ ...s, storeEvents: {} }));
+  }, []);
+
   const value = useMemo<WalkStoreValue>(() => ({
-    ...saved, ready, reading, refresh, setDemo, setDemoSteps, setDemoBalance, claimToday, exchangeFor, useCouponById, resetWalk,
-  }), [saved, ready, reading, refresh, setDemo, setDemoSteps, setDemoBalance, claimToday, exchangeFor, useCouponById, resetWalk]);
+    ...saved, ready, reading, refresh, setDemo, setDemoSteps, setDemoBalance, claimToday, exchangeFor, useCouponById, resetWalk, logStore, resetStoreEvents,
+  }), [saved, ready, reading, refresh, setDemo, setDemoSteps, setDemoBalance, claimToday, exchangeFor, useCouponById, resetWalk, logStore, resetStoreEvents]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import { FeaturedStore } from '../../components/FeaturedStore';
 import { cardStyle, Chip, Tag } from '../../components/ui';
 import { WALK_STORES, won } from '../../data/walkStores';
 import { COUPON_COST } from '../../lib/rewards';
@@ -25,11 +26,20 @@ export default function PerkMap() {
 
   const open = (id: string) => router.push({ pathname: '/store/[id]', params: { id } });
 
+  // 목록 노출 기록 (필터 조합마다 이 실행에서 한 번만)
+  const logStore = w.logStore;
+  const shownIds = stores.map((x) => x.st.id).join(',');
+  useEffect(() => {
+    if (shownIds) logStore(shownIds.split(','), 'shown', `map:${cat}:${budget}`);
+  }, [logStore, shownIds, cat, budget]);
+
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={s.wrap}>
       <View style={s.notice}>
         <Text style={s.noticeText}>시연용 가상 가게예요. 실제 매장·제휴·사용 가능한 쿠폰이 아니에요.</Text>
       </View>
+
+      <FeaturedStore placement="map" />
 
       <MapView
         style={s.map}
@@ -85,6 +95,9 @@ export default function PerkMap() {
       })}
 
       <Text style={s.hint}>메뉴·가격·위치는 시연용 예시예요. 지도의 가게 위치는 실제 매장 위치가 아니에요.</Text>
+      <Pressable onPress={() => router.push('/store-report')}>
+        <Text style={s.link}>사장님 화면: 제휴 가게 성과 보기 (시연) ›</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -104,4 +117,5 @@ const s = StyleSheet.create({
   menus: { fontSize: 13, color: colors.ink, marginTop: 8 },
   body: { fontSize: 14, color: colors.ink },
   hint: { fontSize: 12, color: colors.muted, lineHeight: 17 },
+  link: { fontSize: 13, color: colors.route, fontWeight: '600', marginTop: 4 },
 });

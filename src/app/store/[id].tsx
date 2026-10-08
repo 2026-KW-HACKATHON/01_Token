@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { Btn, cardStyle, Section, Tag } from '../../components/ui';
@@ -22,6 +23,12 @@ export default function StoreDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const st = storeById(id);
   const w = useWalk();
+  const logStore = w.logStore;
+
+  // 상세 조회 기록 (화면을 열 때마다 1회)
+  useEffect(() => {
+    if (id && storeById(id)) logStore([id], 'view');
+  }, [logStore, id]);
 
   if (!st) {
     return <View style={s.center}><Text style={s.body}>가게 정보를 찾지 못했어요.</Text></View>;
@@ -107,6 +114,8 @@ export default function StoreDetail() {
         <Btn label="길찾기 (네이버 지도 도보)" onPress={openRoute} style={{ marginTop: 10 }} />
         <Text style={s.hint}>실제 경로와 시간은 지도 앱에서 확인해요. 가상 위치라 실제 매장으로 안내되지 않아요.</Text>
       </Section>
+
+      <Btn label="사장님 화면: 가게 성과 보기 (시연)" onPress={() => router.push('/store-report')} />
 
       {myCoupons.length > 0 && (
         <Section title={`이 가게 내 쿠폰 ${myCoupons.length}장`}>

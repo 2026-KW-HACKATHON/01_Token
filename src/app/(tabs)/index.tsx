@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FeaturedStore } from '../../components/FeaturedStore';
 import { Btn, cardStyle, Chip, Section, Tag } from '../../components/ui';
 import { COUPON_COST, DAILY_MAX, earnedFor, STEPS_PER_REWARD } from '../../lib/rewards';
 import { useWalk } from '../../store/WalkStore';
@@ -42,6 +43,7 @@ export default function WalkHome() {
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={s.wrap}>
       <Text style={s.kicker}>월계 들름길</Text>
       <Text style={s.title}>어디서 걸어도,{'\n'}월계1동 가게 혜택으로</Text>
+      <FeaturedStore placement="home" />
 
       <View style={[cardStyle, s.stepCard, w.demo && s.demoCard]}>
         {w.demo && <Text style={s.demoBadge}>시연용 데이터 · 실제 측정 아님</Text>}

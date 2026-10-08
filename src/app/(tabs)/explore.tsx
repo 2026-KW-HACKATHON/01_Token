@@ -39,7 +39,6 @@ export default function Explore() {
   const [purpose, setPurpose] = useState<string>();
   const [cuisines, setCuisines] = useState<CuisineCode[]>([]);
   const [detectedNote, setDetectedNote] = useState<string | null>(null);
-  const [openNow, setOpenNow] = useState(false);
   const [localPay, setLocalPay] = useState(false);
   const [focusOnly, setFocusOnly] = useState(false);
   const [sort, setSort] = useState<Sort>('distance');
@@ -109,7 +108,6 @@ export default function Explore() {
       .filter((r) => cat === 'ALL' || r.p.category === cat)
       .filter((r) => !purposeObj || (r.hit && !r.avoid))
       .filter((r) => !cuisines.length || cuisinesOf(r.p).some((c) => cuisines.includes(c)))
-      .filter((r) => !openNow || r.state === 'open')
       .filter((r) => !localPay || Boolean(store.placeInfo[r.p.id]?.payments?.length))
       .filter((r) => !focusOnly || isFocus(r.p));
     const fit = (r: (typeof rows)[number]) =>
@@ -119,7 +117,7 @@ export default function Explore() {
         : sort === 'popular' ? Number(Boolean(b.hot)) - Number(Boolean(a.hot)) || trustScore(b.sum) - trustScore(a.sum) || a.d - b.d
           : sort === 'trust' ? trustScore(b.sum) - trustScore(a.sum) || a.d - b.d
             : fit(b) - fit(a));
-  }, [searched, store, radius, cat, purposeObj, cuisines, openNow, localPay, focusOnly, sort]);
+  }, [searched, store, radius, cat, purposeObj, cuisines, localPay, focusOnly, sort]);
 
   // 사장님 리포트용 노출 기록 (검색 한 번당 한 번)
   const logShown = store.logShown;
@@ -133,17 +131,15 @@ export default function Explore() {
     ...(cat !== 'ALL' ? [{ label: CATEGORY_LABEL[cat], clear: () => setCat('ALL') }] : []),
     ...(purposeObj ? [{ label: purposeObj.label, clear: () => setPurpose(undefined) }] : []),
     ...cuisines.map((c) => ({ label: CUISINE_LABEL[c], clear: () => setCuisines((x) => x.filter((y) => y !== c)) })),
-    ...(openNow ? [{ label: '영업 중', clear: () => setOpenNow(false) }] : []),
     ...(localPay ? [{ label: '지역화폐', clear: () => setLocalPay(false) }] : []),
     ...(focusOnly ? [{ label: FOCUS_DONG, clear: () => setFocusOnly(false) }] : []),
     ...(searched?.keyword ? [{ label: `'${searched.keyword}'`, clear: () => { setKeyword(''); search(''); } }] : []),
   ];
-  const reset = () => { setCat('ALL'); setPurpose(undefined); setCuisines([]); setOpenNow(false); setLocalPay(false); setFocusOnly(false); setRadius(1000); setSort('distance'); };
+  const reset = () => { setCat('ALL'); setPurpose(undefined); setCuisines([]); setLocalPay(false); setFocusOnly(false); setRadius(1000); setSort('distance'); };
 
   // 결과 없음: 조건 하나씩만 완화한 대안 (S-DTPXYH)
   const alternatives: { label: string; run: () => void }[] = [
     ...(radius < 2000 ? [{ label: `반경 ${km(RADII[RADII.indexOf(radius) + 1])}로 넓히기`, run: () => setRadius(RADII[RADII.indexOf(radius) + 1]) }] : []),
-    ...(openNow ? [{ label: '영업시간 미확인 가게도 보기', run: () => setOpenNow(false) }] : []),
     ...(localPay ? [{ label: '결제수단 조건 빼기', run: () => setLocalPay(false) }] : []),
     ...(focusOnly ? [{ label: `${FOCUS_DONG} 밖 가게도 보기`, run: () => setFocusOnly(false) }] : []),
     ...(purposeObj ? [{ label: '방문 목적 조건 빼기', run: () => setPurpose(undefined) }] : []),
@@ -186,7 +182,6 @@ export default function Explore() {
       </View>
       <View style={s.chips}>
         {RADII.map((r) => <Chip key={r} label={km(r)} on={radius === r} onPress={() => setRadius(r)} />)}
-        <Chip label="영업 중" on={openNow} onPress={() => setOpenNow(!openNow)} />
         <Chip label="지역화폐·온누리" on={localPay} onPress={() => setLocalPay(!localPay)} />
         <Chip label={`📍 ${FOCUS_DONG}만`} on={focusOnly} onPress={() => setFocusOnly(!focusOnly)} />
       </View>
@@ -207,7 +202,7 @@ export default function Explore() {
         ))}
       </View>
       <Text style={s.hint}>
-        방문 목적은 가게 분류로 추정하고, 영업 중은 운영자가 등록한 영업시간으로만 판단해요. 인기순은 네이버 카페·블로그 리뷰가 많은 동네 가게를, 신뢰도순은 방문 인증 후기가 많은 곳을 먼저 보여 줘요.{naverEnabled ? '' : ' (네이버 키가 없어 인기 정보는 꺼져 있어요)'}
+        방문 목적은 가게 분류로 추정해요. 영업시간이 확인되지 않은 가게도 모두 보여 주고 '영업시간 미확인'으로 표시해요. 인기순은 네이버 카페·블로그 리뷰가 많은 동네 가게를, 신뢰도순은 방문 인증 후기가 많은 곳을 먼저 보여 줘요.{naverEnabled ? '' : ' (네이버 키가 없어 인기 정보는 꺼져 있어요)'}
       </Text>
 
       {loading && <ActivityIndicator color={colors.rose} style={{ marginTop: 24 }} />}

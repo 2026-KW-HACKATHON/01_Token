@@ -28,6 +28,7 @@ export default function RootLayout() {
         <Stack.Screen name="owner-apply" options={{ title: '운영 권한 신청' }} />
         <Stack.Screen name="owner-edit" options={{ title: '영업 정보 수정' }} />
         <Stack.Screen name="store/[id]" options={{ title: '가게' }} />
+        <Stack.Screen name="store-report" options={{ title: '제휴 가게 성과 (시연)' }} />
       </Stack>
       </WalkStoreProvider>
     </AppStoreProvider>
