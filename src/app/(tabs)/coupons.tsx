@@ -30,6 +30,7 @@ export default function Coupons() {
   if (list.length === 0) {
     return (
       <View style={s.empty}>
+        <View style={s.emptyIcon}><Text style={{ fontSize: 36 }}>🎟</Text></View>
         <Text style={s.title}>아직 쿠폰이 없어요</Text>
         <Text style={s.body}>걸어서 보상 10개를 모으면 혜택 지도에서 가게 쿠폰으로 바꿀 수 있어요.</Text>
         <Btn label="혜택 지도 보기" kind="primary" onPress={() => router.navigate('/map')} />
@@ -39,6 +40,8 @@ export default function Coupons() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={s.wrap}>
+      <Text style={s.title}>차곡차곡 모은 동네 혜택</Text>
+      <Text style={s.body}>내 쿠폰 {list.length}장</Text>
       <Text style={s.hint}>시연용 쿠폰이에요. 실제 매장에서 사용할 수 없어요.</Text>
       {list.map((c) => {
         const st = storeById(c.storeId);
@@ -50,7 +53,7 @@ export default function Coupons() {
               <Text style={s.name}>{st?.name ?? '알 수 없는 가게'}</Text>
               <Tag label={state} tone={state === '사용 가능' ? 'done' : 'muted'} />
             </View>
-            <Text style={s.body}>{st?.perk}</Text>
+            <Text style={s.perk}>{st?.perk}</Text>
             <Text style={s.code}>{c.id}</Text>
             <Text style={s.meta}>
               {date(c.issuedAt)} 발급{c.expiresAt ? ` · ${date(c.expiresAt)}까지` : ''}{c.usedAt ? ` · ${date(c.usedAt)} 사용` : ''}
@@ -70,13 +73,15 @@ export default function Coupons() {
 const s = StyleSheet.create({
   wrap: { padding: 20, paddingBottom: 48, gap: 10 },
   empty: { flex: 1, justifyContent: 'center', padding: 24, gap: 12, backgroundColor: colors.paper },
-  title: { fontSize: 20, fontWeight: '800', color: colors.ink },
+  title: { fontSize: 25, lineHeight: 33, letterSpacing: -0.8, fontWeight: '800', color: colors.ink },
+  emptyIcon: { width: 88, height: 88, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.doneSoft, marginBottom: 16 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   name: { fontSize: 16, fontWeight: '700', color: colors.ink, flex: 1 },
   body: { fontSize: 14, color: colors.ink, marginTop: 6, lineHeight: 20 },
-  code: { fontSize: 22, fontWeight: '800', color: colors.ink, letterSpacing: 2, marginTop: 10, fontVariant: ['tabular-nums'] },
+  perk: { fontSize: 22, fontWeight: '800', color: colors.rose, lineHeight: 30, marginTop: 16, letterSpacing: -0.5 },
+  code: { fontSize: 14, fontWeight: '600', color: colors.ink, letterSpacing: 1, marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderStyle: 'dashed', borderColor: colors.line, fontVariant: ['tabular-nums'] },
   meta: { fontSize: 12, color: colors.muted, marginTop: 4 },
   hint: { fontSize: 12, color: colors.muted },
-  btns: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  btns: { gap: 8, marginTop: 18 },
   dim: { opacity: 0.55 },
 });

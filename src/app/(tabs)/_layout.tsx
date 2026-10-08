@@ -11,6 +11,10 @@ export default function TabsLayout() {
         headerStyle: { backgroundColor: colors.paper },
         headerShadowVisible: false,
         headerTintColor: colors.ink,
+        headerTitleStyle: { fontSize: 17, fontWeight: '700' },
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.line },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarItemStyle: { paddingTop: 6 },
       }}
     >
       <Tabs.Screen

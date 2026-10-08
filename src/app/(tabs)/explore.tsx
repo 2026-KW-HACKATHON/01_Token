@@ -151,6 +151,8 @@ export default function Explore() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={s.wrap} keyboardShouldPersistTaps="handled">
+      <Text style={s.title}>동네의 새로운 발견</Text>
+      <Text style={[s.body, { color: colors.muted, marginBottom: 20 }]}>가까운 골목에서 내 취향의 가게를 찾아요.</Text>
       <View style={s.row}>
         <TextInput
           style={[inputStyle, { flex: 1 }, coords && { color: colors.muted }]}
@@ -265,6 +267,7 @@ export default function Explore() {
 
 const s = StyleSheet.create({
   wrap: { padding: 20, paddingBottom: 60 },
+  title: { fontSize: 27, fontWeight: '800', color: colors.ink, lineHeight: 36, letterSpacing: -0.8, marginBottom: 6 },
   row: { flexDirection: 'row', gap: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   hint: { fontSize: 12, color: colors.muted, marginTop: 10, lineHeight: 17 },
@@ -278,8 +281,8 @@ const s = StyleSheet.create({
   empty: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginTop: 14, borderWidth: 1, borderColor: colors.line },
   emptyTitle: { fontSize: 16, fontWeight: '800', color: colors.ink },
   item: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 14,
-    padding: 14, marginBottom: 8, borderWidth: 1, borderColor: colors.line,
+    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 22,
+    padding: 18, marginBottom: 10, borderWidth: 1, borderColor: colors.line,
   },
   name: { fontSize: 15, fontWeight: '700', color: colors.ink },
   meta: { fontSize: 12, color: colors.muted, marginTop: 2 },

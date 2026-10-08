@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FeaturedStore } from '../../components/FeaturedStore';
-import { Btn, cardStyle, Chip, Section, Tag } from '../../components/ui';
+import { Btn, cardStyle, Chip, Disclosure, Section, Tag } from '../../components/ui';
 import { COUPON_COST, DAILY_MAX, earnedFor, STEPS_PER_REWARD } from '../../lib/rewards';
 import { useWalk } from '../../store/WalkStore';
 import { colors } from '../../theme';
@@ -41,27 +41,30 @@ export default function WalkHome() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={s.wrap}>
-      <Text style={s.kicker}>월계 들름길</Text>
-      <Text style={s.title}>어디서 걸어도,{'\n'}월계1동 가게 혜택으로</Text>
-      <FeaturedStore placement="home" />
+      <View style={s.rowBetween}>
+        <Text style={s.kicker}>월계 들름길</Text>
+        <Tag label="WALK → LOCAL" tone="done" />
+      </View>
+      <Text style={s.title}>오늘의 걸음이,{'\n'}동네의 혜택으로.</Text>
+      <Text style={s.subtitle}>어디서 걸어도 보상은 월계1동에서 써요.</Text>
 
       <View style={[cardStyle, s.stepCard, w.demo && s.demoCard]}>
         {w.demo && <Text style={s.demoBadge}>시연용 데이터 · 실제 측정 아님</Text>}
-        <Text style={s.label}>오늘 걸음</Text>
+        <Text style={[s.label, { color: '#C5DDCC' }]}>오늘 걸음</Text>
         <Text style={s.big}>
           {steps == null ? '—' : steps.toLocaleString()}
           <Text style={s.unit}> 보</Text>
         </Text>
         {r && (
           <>
-            <Text style={s.meta}>
+            <Text style={[s.meta, { color: '#C5DDCC', lineHeight: 19 }]}>
               {w.demo ? '시연용 값' : `${STATUS_LABEL[r.status]} · ${r.source === 'core-motion' ? 'iPhone 동작 기록' : r.source === 'live-sensor' ? '앱 실행 중 측정' : Platform.OS}`}
               {' · '}오늘 0시 ~ {hhmm(r.queriedAt)} 기준
             </Text>
             {r.message ? <Text style={s.warn}>{r.message}</Text> : null}
           </>
         )}
-        <Btn label="걸음 다시 확인" onPress={() => w.refresh('수동 조회')} style={{ marginTop: 10 }} />
+        <Btn label="↻  걸음 다시 확인" onPress={() => w.refresh('수동 조회')} style={{ marginTop: 18, backgroundColor: colors.accent, borderWidth: 0 }} />
       </View>
 
       <View style={cardStyle}>
@@ -69,7 +72,7 @@ export default function WalkHome() {
           <Text style={s.label}>오늘 보상</Text>
           <Tag label={`${claimed} / ${DAILY_MAX}개 받음`} tone="route" />
         </View>
-        <Text style={s.body}>
+        <Text style={s.rewardHeadline}>
           {steps == null
             ? '걸음을 확인하면 보상을 계산해요.'
             : nextIn == null
@@ -86,9 +89,9 @@ export default function WalkHome() {
         <Text style={s.hint}>1,000보마다 1개, 하루 최대 {DAILY_MAX}개. 받은 보상은 다음 날에도 남아요.</Text>
       </View>
 
-      <Pressable onPress={() => router.navigate('/map')} style={({ pressed }) => [cardStyle, pressed && { opacity: 0.8 }]}>
+      <Pressable accessibilityRole="button" onPress={() => router.navigate('/map')} style={({ pressed }) => [cardStyle, s.wallet, pressed && { opacity: 0.8 }]}>
         <View style={s.rowBetween}>
-          <Text style={s.label}>보상 잔액</Text>
+          <Text style={s.label}>나의 보상 지갑</Text>
           <Text style={s.balance}>{w.rewards.balance}개</Text>
         </View>
         <View style={s.bar}><View style={[s.barFill, { width: `${progress * 100}%` }]} /></View>
@@ -99,7 +102,12 @@ export default function WalkHome() {
         </Text>
       </Pressable>
 
-      <Section title="시연 설정">
+      <Section title="오늘 들러볼 가게" right={<Text style={s.meta}>월계1동</Text>}>
+        <FeaturedStore placement="home" />
+      </Section>
+
+      <View style={{ marginTop: 20 }} />
+      <Disclosure title="시연 설정">
         <View style={s.chips}>
           <Chip label="실제 측정" on={!w.demo} onPress={() => w.setDemo(false)} />
           <Chip label="시연용 데이터" on={w.demo} onPress={() => w.setDemo(true)} />
@@ -115,9 +123,9 @@ export default function WalkHome() {
         <Text style={s.hint}>
           시연용 데이터는 발표에서 보상 달성 과정을 보여 주기 위한 값이에요. 실제 걸음과 구분해서 표시돼요.
         </Text>
-      </Section>
+      </Disclosure>
 
-      <Section title="조회 기록">
+      <Disclosure title="조회 기록 · 측정 확인">
         <Text style={s.hint}>앱을 열거나 돌아올 때마다 기록돼요. 화면을 끄고 걸은 뒤 돌아오면 '앱 복귀' 기록이 늘어나는지 확인할 수 있어요.</Text>
         <View style={[cardStyle, { marginTop: 8 }]}>
           {w.log.length === 0 && <Text style={s.meta}>아직 기록이 없어요.</Text>}
@@ -128,23 +136,26 @@ export default function WalkHome() {
           ))}
         </View>
         <Btn label="걷기 기록 초기화" kind="danger" onPress={confirmReset} />
-      </Section>
+      </Disclosure>
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  wrap: { padding: 20, paddingBottom: 48, gap: 12 },
+  wrap: { padding: 20, paddingBottom: 48, gap: 8 },
   kicker: { fontSize: 13, fontWeight: '700', color: colors.rose },
-  title: { fontSize: 26, lineHeight: 34, fontWeight: '800', color: colors.ink, letterSpacing: -0.5, marginBottom: 6 },
-  stepCard: { paddingVertical: 20 },
-  demoCard: { borderColor: '#9A6B00', borderWidth: 2 },
-  demoBadge: { color: '#9A6B00', fontWeight: '800', fontSize: 12, marginBottom: 4 },
+  title: { fontSize: 30, lineHeight: 39, fontWeight: '800', color: colors.ink, letterSpacing: -1, marginTop: 8 },
+  subtitle: { fontSize: 13, lineHeight: 20, color: colors.muted, marginBottom: 18 },
+  stepCard: { padding: 24, backgroundColor: colors.ink, borderColor: colors.ink },
+  demoCard: { borderColor: colors.accent },
+  demoBadge: { color: colors.accent, fontWeight: '700', fontSize: 12, marginBottom: 16 },
   label: { fontSize: 14, fontWeight: '700', color: colors.ink },
-  big: { fontSize: 46, fontWeight: '800', color: colors.ink, letterSpacing: -1 },
-  unit: { fontSize: 18, fontWeight: '600', color: colors.muted },
+  big: { fontSize: 54, fontWeight: '800', color: '#fff', letterSpacing: -2, marginVertical: 8, fontVariant: ['tabular-nums'] },
+  unit: { fontSize: 18, fontWeight: '600', color: '#C5DDCC' },
   meta: { fontSize: 13, color: colors.muted, marginTop: 2 },
-  warn: { fontSize: 13, color: colors.rose, marginTop: 4 },
+  warn: { fontSize: 13, color: '#FFE0A0', marginTop: 8, lineHeight: 19 },
+  rewardHeadline: { fontSize: 20, fontWeight: '700', color: colors.ink, marginTop: 14, lineHeight: 28, letterSpacing: -0.5 },
+  wallet: { backgroundColor: colors.accent, borderColor: colors.accent },
   body: { fontSize: 14, color: colors.ink, marginTop: 8, lineHeight: 20 },
   hint: { fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 17 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
