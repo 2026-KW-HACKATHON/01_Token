@@ -55,7 +55,7 @@ export default function WalkHome() {
         {r && (
           <>
             <Text style={s.meta}>
-              {w.demo ? '시연용 값' : `${STATUS_LABEL[r.status]} · ${Platform.OS === 'ios' ? 'iPhone 동작 기록' : Platform.OS}`}
+              {w.demo ? '시연용 값' : `${STATUS_LABEL[r.status]} · ${r.source === 'core-motion' ? 'iPhone 동작 기록' : r.source === 'live-sensor' ? '앱 실행 중 측정' : Platform.OS}`}
               {' · '}오늘 0시 ~ {hhmm(r.queriedAt)} 기준
             </Text>
             {r.message ? <Text style={s.warn}>{r.message}</Text> : null}

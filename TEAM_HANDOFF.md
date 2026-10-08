@@ -205,3 +205,18 @@ Claude 기록에 따르면:
 - **동네 탐색**: "영업 중" 필터 삭제. 영업시간이 확인되지 않은 가게도 항상 결과에 나오고 '영업시간 미확인'으로 표시.
 - 정책 메모: 애플 심사 지침 5.1.3은 건강·피트니스(동작 및 피트니스 포함) 데이터를 광고·마케팅에 쓰거나 제3자 제공하는 것을 제한하는 것으로 알고 있음. 노출 카드는 걷기 데이터와 분리했으나 "걸음 → 쿠폰" 보상 구조의 상용 출시 적합성은 별도 검토 필요.
 - 검증: tsc 통과, 보상 규칙 테스트 13개 통과, iOS·Android 번들 성공. 실기기 미확인.
+
+### 9-2. 안드로이드 APK 준비 (2026-10-08 14시대, Claude) — 빌드는 아직 안 함
+- **A안(지도 키 없이)**: `src/lib/mapSupport.ts`의 `CAN_EMBED_MAP`. 안드로이드 설치형 앱에서는 앱 안 지도 대신 `src/components/MapFallback.tsx`(네이버 지도·카카오맵 버튼). 적용 화면: 혜택 지도, 가게 상세, 장소 상세, 코스 상세. iOS·Expo Go는 그대로.
+- 네이버 지도 URL 스킴 함수(`naverWalkUrl`, `naverPlaceUrl`)를 `mapSupport.ts`로 모음. Expo Go 안드로이드 appname은 `host.exp.exponent`.
+- **안드로이드 걸음**: 앱 실행 중 센서 측정(`liveReading`, WalkStore의 `androidLive`). 화면에 "앱 실행 중 측정" 표시. 앱 완전 종료 중 걸음은 포함되지 않을 수 있음.
+- 빌드 설정: `eas.json`(preview → APK), `app.json` android.package `com.token01.wolgyedeullumgil`, ACTIVITY_RECOGNITION 권한. 빌드 방법: `docs/APK_BUILD.md`.
+- 검증: tsc, 보상 테스트 13개, expo config, iOS·Android 번들 통과. **EAS 빌드·안드로이드 실기기 미실행.**
+
+### 9-3. UI 업그레이드 작업 규칙 (GPT 등 다른 AI용)
+- 기준: `walk-reward` 브랜치 최신 커밋에서 새 브랜치(예: `gpt/ui-upgrade`)를 만들어 작업. main 직접 수정 금지.
+- 자유롭게 바꿔도 되는 것: 화면 파일의 레이아웃·색·글꼴·간격·아이콘·문구 다듬기 (`src/app/**`, `src/components/**`, `src/theme.ts`).
+- **바꾸지 말 것(로직)**: `src/lib/steps.ts`, `src/lib/rewards.ts`, `src/store/WalkStore.tsx`, `src/lib/mapSupport.ts`, `src/data/walkStores.ts`, `scripts/test-rewards.mjs`. 필요하면 인계로 요청.
+- **유지할 것**: "시연용"·"제휴 · 시연용"·"가상 가게" 표시, "앱 실행 중 측정"·"권한 거부" 등 상태 문구, `CAN_EMBED_MAP` 분기(지우면 안드로이드 APK가 지도에서 멈출 수 있음), 걸음 데이터로 광고·노출을 고르지 않는 원칙.
+- 확인: `npx tsc --noEmit`, `node scripts/test-rewards.mjs`, Expo Go로 아이폰에서 걷기 홈 → 보상 → 쿠폰 → 쿠폰함 → 사장님 화면.
+- Claude는 UI 작업이 끝날 때까지 위 화면 파일을 수정하지 않는다.

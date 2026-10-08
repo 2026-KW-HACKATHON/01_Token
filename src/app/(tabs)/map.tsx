@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import { MapFallback } from '../../components/MapFallback';
+import { CAN_EMBED_MAP } from '../../lib/mapSupport';
 import { FeaturedStore } from '../../components/FeaturedStore';
 import { cardStyle, Chip, Tag } from '../../components/ui';
 import { WALK_STORES, won } from '../../data/walkStores';
@@ -41,21 +43,25 @@ export default function PerkMap() {
 
       <FeaturedStore placement="map" />
 
-      <MapView
-        style={s.map}
-        initialRegion={{ latitude: 37.6222, longitude: 127.0598, latitudeDelta: 0.012, longitudeDelta: 0.012 }}
-      >
-        {stores.map(({ st }) => (
-          <Marker
-            key={st.id}
-            coordinate={{ latitude: st.lat, longitude: st.lng }}
-            title={st.name}
-            description={st.perk}
-            onCalloutPress={() => open(st.id)}
-            pinColor={colors.rose}
-          />
-        ))}
-      </MapView>
+      {CAN_EMBED_MAP ? (
+        <MapView
+          style={s.map}
+          initialRegion={{ latitude: 37.6222, longitude: 127.0598, latitudeDelta: 0.012, longitudeDelta: 0.012 }}
+        >
+          {stores.map(({ st }) => (
+            <Marker
+              key={st.id}
+              coordinate={{ latitude: st.lat, longitude: st.lng }}
+              title={st.name}
+              description={st.perk}
+              onCalloutPress={() => open(st.id)}
+              pinColor={colors.rose}
+            />
+          ))}
+        </MapView>
+      ) : (
+        <MapFallback note="이 기기에서는 앱 안 지도를 표시하지 않아요. 아래 가게를 눌러 상세에서 네이버 지도·카카오맵으로 위치를 확인하세요." />
+      )}
 
       <View style={s.chips}>
         {CATS.map((c) => <Chip key={c} label={c} on={cat === c} onPress={() => setCat(c)} />)}

@@ -1,22 +1,15 @@
-import Constants from 'expo-constants';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import { MapFallback } from '../../components/MapFallback';
+import { CAN_EMBED_MAP, naverWalkUrl } from '../../lib/mapSupport';
 import { Btn, cardStyle, Section, Tag } from '../../components/ui';
 import { storeById, won } from '../../data/walkStores';
 import { kakaoRouteUrl } from '../../lib/geo';
 import { COUPON_COST } from '../../lib/rewards';
 import { useWalk } from '../../store/WalkStore';
 import { colors } from '../../theme';
-
-/** 네이버 지도 앱 도보 길찾기 (appname 필수: Expo Go면 Expo Go 번들 ID) */
-function naverWalkUrl(p: { name: string; lat: number; lng: number }) {
-  const appname = Constants.executionEnvironment === 'storeClient'
-    ? 'host.exp.Exponent'
-    : Constants.expoConfig?.ios?.bundleIdentifier ?? 'datecourse';
-  return `nmap://route/walk?dlat=${p.lat}&dlng=${p.lng}&dname=${encodeURIComponent(p.name)}&appname=${appname}`;
-}
 
 /** 월계 들름길 — 가게 상세·쿠폰 교환 (시연용 가상 가게) */
 export default function StoreDetail() {
@@ -104,13 +97,17 @@ export default function StoreDetail() {
       </Section>
 
       <Section title="위치">
-        <MapView
-          style={s.map}
-          scrollEnabled={false}
-          initialRegion={{ latitude: store.lat, longitude: store.lng, latitudeDelta: 0.005, longitudeDelta: 0.005 }}
-        >
-          <Marker coordinate={{ latitude: store.lat, longitude: store.lng }} title={store.name} pinColor={colors.rose} />
-        </MapView>
+        {CAN_EMBED_MAP ? (
+          <MapView
+            style={s.map}
+            scrollEnabled={false}
+            initialRegion={{ latitude: store.lat, longitude: store.lng, latitudeDelta: 0.005, longitudeDelta: 0.005 }}
+          >
+            <Marker coordinate={{ latitude: store.lat, longitude: store.lng }} title={store.name} pinColor={colors.rose} />
+          </MapView>
+        ) : (
+          <MapFallback place={store} note="가상 위치예요. 지도 앱에서 대략적인 위치를 확인할 수 있어요." />
+        )}
         <Btn label="길찾기 (네이버 지도 도보)" onPress={openRoute} style={{ marginTop: 10 }} />
         <Text style={s.hint}>실제 경로와 시간은 지도 앱에서 확인해요. 가상 위치라 실제 매장으로 안내되지 않아요.</Text>
       </Section>

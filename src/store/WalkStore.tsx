@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
-import { demoReading, readTodaySteps, type StepReading } from '../lib/steps';
+import { Pedometer } from 'expo-sensors';
+import { AppState, Platform } from 'react-native';
+import { androidPermission, dateKeyOf, demoReading, liveReading, readTodaySteps, type StepReading } from '../lib/steps';
 import { claim, emptyState, exchange, useCoupon, type Coupon, type RewardState } from '../lib/rewards';
 
 /**
@@ -27,6 +28,7 @@ interface Saved {
   demoSteps: number;
   log: StepLog[];
   storeEvents: Record<string, StoreEvent[]>;
+  androidLive: { dateKey: string; steps: number }; // 안드로이드 실행 중 측정 누적
 }
 
 interface WalkStoreValue extends Saved {
@@ -44,7 +46,7 @@ interface WalkStoreValue extends Saved {
   resetStoreEvents: () => void;
 }
 
-const initial: Saved = { rewards: emptyState(), demo: false, demoSteps: 990, log: [], storeEvents: {} };
+const initial: Saved = { rewards: emptyState(), demo: false, demoSteps: 990, log: [], storeEvents: {}, androidLive: { dateKey: '', steps: 0 } };
 const MAX_STORE_EVENTS = 500;
 
 function addStoreEvents(cur: Record<string, StoreEvent[]>, ids: string[], t: StoreEventType) {
@@ -75,9 +77,17 @@ export function WalkStoreProvider({ children }: { children: React.ReactNode }) {
     if (ready) AsyncStorage.setItem(KEY, JSON.stringify(saved)).catch(() => {});
   }, [saved, ready]);
 
+  const androidStatus = useRef<'ok' | 'denied' | 'unavailable' | 'error' | null>(null);
+
   const refresh = useCallback(async (trigger = '수동 조회') => {
-    const { demo, demoSteps } = ref.current;
-    const r = demo ? demoReading(demoSteps) : await readTodaySteps();
+    const { demo, demoSteps, androidLive } = ref.current;
+    let r: StepReading;
+    if (demo) r = demoReading(demoSteps);
+    else if (Platform.OS === 'android') {
+      if (!androidStatus.current || androidStatus.current !== 'ok') androidStatus.current = await androidPermission();
+      const today = dateKeyOf(new Date());
+      r = liveReading(androidStatus.current, androidLive.dateKey === today ? androidLive.steps : 0);
+    } else r = await readTodaySteps();
     setReading(r);
     setSaved((s) => ({
       ...s,
@@ -92,6 +102,31 @@ export function WalkStoreProvider({ children }: { children: React.ReactNode }) {
     const sub = AppState.addEventListener('change', (st) => { if (st === 'active') refresh('앱 복귀'); });
     return () => sub.remove();
   }, [ready, refresh]);
+
+  // 안드로이드: 앱 실행 중 센서 구독 → 오늘 누적에 더함 (실시간 값과 기간 조회를 섞지 않음)
+  useEffect(() => {
+    if (!ready || Platform.OS !== 'android' || saved.demo) return;
+    let sub: { remove: () => void } | undefined;
+    let alive = true;
+    (async () => {
+      const st = await androidPermission();
+      androidStatus.current = st;
+      if (!alive || st !== 'ok') return;
+      let day = dateKeyOf(new Date());
+      let base = ref.current.androidLive.dateKey === day ? ref.current.androidLive.steps : 0;
+      let rawBase = 0;
+      sub = Pedometer.watchStepCount(({ steps: raw }) => {
+        const today = dateKeyOf(new Date());
+        if (today !== day) { day = today; base = 0; rawBase = raw; } // 자정이 지나면 새로 셈
+        const total = base + Math.max(0, raw - rawBase);
+        const live = { dateKey: day, steps: total };
+        ref.current = { ...ref.current, androidLive: live };
+        setSaved((s) => ({ ...s, androidLive: live }));
+        if (!ref.current.demo) setReading(liveReading('ok', total));
+      });
+    })();
+    return () => { alive = false; sub?.remove(); };
+  }, [ready, saved.demo]);
 
   const setDemo = useCallback((on: boolean) => {
     setSaved((s) => ({ ...s, demo: on }));

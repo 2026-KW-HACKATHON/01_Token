@@ -7,7 +7,7 @@ import { Pedometer } from 'expo-sensors';
  * - Android: Expo Pedometer는 기간 조회를 지원하지 않는다. 'unsupported'로 돌려주고 0보로 단정하지 않는다.
  */
 export type StepStatus = 'ok' | 'denied' | 'unavailable' | 'unsupported' | 'error';
-export type StepSource = 'core-motion' | 'demo';
+export type StepSource = 'core-motion' | 'live-sensor' | 'demo';
 
 export interface StepReading {
   status: StepStatus;
@@ -51,5 +51,33 @@ export function demoReading(steps: number, now = new Date()): StepReading {
   return {
     status: 'ok', source: 'demo', steps, dateKey: dateKeyOf(now),
     from: startOfDay(now).toISOString(), queriedAt: now.toISOString(),
+  };
+}
+
+/**
+ * 안드로이드: 앱을 켜 둔 동안 센서로 센 걸음(실행 중 측정).
+ * 앱이 꺼져 있던 동안의 걸음은 포함하지 않는다. steps는 오늘 앱 실행 중 누적값.
+ */
+export async function androidPermission(): Promise<'ok' | 'denied' | 'unavailable' | 'error'> {
+  try {
+    if (!(await Pedometer.isAvailableAsync())) return 'unavailable';
+    let perm = await Pedometer.getPermissionsAsync();
+    if (!perm.granted && perm.canAskAgain) perm = await Pedometer.requestPermissionsAsync();
+    return perm.granted ? 'ok' : 'denied';
+  } catch {
+    return 'error';
+  }
+}
+
+export function liveReading(status: StepStatus, steps: number | null, now = new Date()): StepReading {
+  const messages: Partial<Record<StepStatus, string>> = {
+    ok: '이 앱이 실행 중일 때 센 걸음이에요. 앱을 완전히 종료한 동안의 걸음은 포함되지 않을 수 있어요.',
+    denied: '신체 활동 권한이 꺼져 있어요. 설정에서 허용해 주세요.',
+    unavailable: '이 기기에서 걸음 센서를 사용할 수 없어요.',
+    error: '걸음 센서를 확인하지 못했어요.',
+  };
+  return {
+    status, source: 'live-sensor', steps: status === 'ok' ? steps ?? 0 : null, dateKey: dateKeyOf(now),
+    from: startOfDay(now).toISOString(), queriedAt: now.toISOString(), message: messages[status],
   };
 }

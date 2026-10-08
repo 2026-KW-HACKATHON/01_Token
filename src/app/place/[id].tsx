@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { dongOf, FOCUS_DONG } from '../../lib/focus';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import { MapFallback } from '../../components/MapFallback';
+import { CAN_EMBED_MAP } from '../../lib/mapSupport';
 import { naverMapUrl } from '../../api/naver';
 import { PlaceHero } from '../../components/PlaceThumb';
 import { Btn, cardStyle, Section, Tag } from '../../components/ui';
@@ -102,13 +104,17 @@ export default function PlaceDetail() {
       </View>
 
       {hasCoord(pl) && (
-        <MapView
-          style={s.map}
-          scrollEnabled={false}
-          initialRegion={{ latitude: pl.lat, longitude: pl.lng, latitudeDelta: 0.006, longitudeDelta: 0.006 }}
-        >
-          <Marker coordinate={{ latitude: pl.lat, longitude: pl.lng }} title={pl.name} />
-        </MapView>
+        CAN_EMBED_MAP ? (
+          <MapView
+            style={s.map}
+            scrollEnabled={false}
+            initialRegion={{ latitude: pl.lat, longitude: pl.lng, latitudeDelta: 0.006, longitudeDelta: 0.006 }}
+          >
+            <Marker coordinate={{ latitude: pl.lat, longitude: pl.lng }} title={pl.name} />
+          </MapView>
+        ) : (
+          <MapFallback place={pl} />
+        )
       )}
 
       <View style={cardStyle}>

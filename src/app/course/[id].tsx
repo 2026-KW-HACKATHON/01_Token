@@ -3,6 +3,8 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
+import { MapFallback } from '../../components/MapFallback';
+import { CAN_EMBED_MAP } from '../../lib/mapSupport';
 import { Btn, Tag } from '../../components/ui';
 import { distanceM, hasCoord, kakaoRouteUrl, walkMinutes } from '../../lib/geo';
 import { openPlace } from '../../lib/nav';
@@ -141,27 +143,31 @@ export default function CourseDetail() {
       </View>
 
       {coords.length > 0 && (
-        <MapView
-          ref={mapRef}
-          style={s.map}
-          initialRegion={{ latitude: coords[0].latitude, longitude: coords[0].longitude, latitudeDelta: 0.015, longitudeDelta: 0.015 }}
-          onMapReady={() => coords.length > 1 &&
-            mapRef.current?.fitToCoordinates(coords, { edgePadding: { top: 50, right: 50, bottom: 50, left: 50 }, animated: false })}
-        >
-          {coords.length > 1 && (
-            <Polyline coordinates={coords} strokeColor={colors.route} strokeWidth={4} lineDashPattern={[10, 6]} />
-          )}
-          {mapped.map(({ st, i }) => (
-            <Marker
-              key={st.place.id}
-              coordinate={{ latitude: st.place.lat, longitude: st.place.lng }}
-              title={`${i + 1}. ${st.place.name}`}
-              description={st.time ? `${st.time} 방문 예정` : undefined}
-            >
-              <View style={s.pin}><Text style={s.pinText}>{i + 1}</Text></View>
-            </Marker>
-          ))}
-        </MapView>
+        CAN_EMBED_MAP ? (
+          <MapView
+            ref={mapRef}
+            style={s.map}
+            initialRegion={{ latitude: coords[0].latitude, longitude: coords[0].longitude, latitudeDelta: 0.015, longitudeDelta: 0.015 }}
+            onMapReady={() => coords.length > 1 &&
+              mapRef.current?.fitToCoordinates(coords, { edgePadding: { top: 50, right: 50, bottom: 50, left: 50 }, animated: false })}
+          >
+            {coords.length > 1 && (
+              <Polyline coordinates={coords} strokeColor={colors.route} strokeWidth={4} lineDashPattern={[10, 6]} />
+            )}
+            {mapped.map(({ st, i }) => (
+              <Marker
+                key={st.place.id}
+                coordinate={{ latitude: st.place.lat, longitude: st.place.lng }}
+                title={`${i + 1}. ${st.place.name}`}
+                description={st.time ? `${st.time} 방문 예정` : undefined}
+              >
+                <View style={s.pin}><Text style={s.pinText}>{i + 1}</Text></View>
+              </Marker>
+            ))}
+          </MapView>
+        ) : (
+          <MapFallback note="이 기기에서는 코스 지도를 표시하지 않아요. 각 장소의 길찾기 버튼으로 지도 앱을 열 수 있어요." />
+        )
       )}
 
       {isEmpty && (
