@@ -26,8 +26,8 @@ export function MapFallback({ place, note }: { place?: { name: string; lat: numb
 }
 
 const s = StyleSheet.create({
-  box: { backgroundColor: colors.routeSoft, borderRadius: 16, padding: 14 },
-  title: { fontSize: 14, fontWeight: '700', color: colors.route },
+  box: { backgroundColor: colors.routeSoft, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: colors.line },
+  title: { fontSize: 16, lineHeight: 23, fontWeight: '700', color: colors.route },
   body: { fontSize: 13, color: colors.ink, marginTop: 4, lineHeight: 19 },
-  row: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  row: { flexWrap: 'wrap', flexDirection: 'row', gap: 8, marginTop: 16 },
 });
