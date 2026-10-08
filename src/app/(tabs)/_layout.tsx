@@ -1,5 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
+import { ReminderBridge } from '../../components/ReminderBridge';
+import { RewardReadyPopup } from '../../components/RewardReadyPopup';
 import { colors } from '../../theme';
 
 const icon = (glyph: string) => ({ focused }: { focused: boolean }) => (
@@ -8,6 +10,7 @@ const icon = (glyph: string) => ({ focused }: { focused: boolean }) => (
 
 export default function TabsLayout() {
   return (
+    <>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
@@ -31,5 +34,9 @@ export default function TabsLayout() {
       <Tabs.Screen name="courses" options={{ href: null, title: '내 코스' }} />
       <Tabs.Screen name="manage" options={{ href: null, title: '운영' }} />
     </Tabs>
+    {/* 걸음이 1,000보 단위를 넘으면 어느 탭에서든 보상 알림 */}
+    <RewardReadyPopup />
+    <ReminderBridge />
+    </>
   );
 }

@@ -48,7 +48,8 @@
         {
           "motionPermission": "걸은 만큼 월계1동 가게 쿠폰 보상을 계산하기 위해 오늘 걸음 기록을 읽습니다."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

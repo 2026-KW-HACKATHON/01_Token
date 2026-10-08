@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AdPopup, resetAdPopup } from '../../components/AdPopup';
 import { FeaturedStore } from '../../components/FeaturedStore';
 import { Btn, cardStyle, Chip, Disclosure, ProgressBar, Section, T, Tag } from '../../components/ui';
+import { getReminderOn, REMINDER_HOUR, setDailyReminder, testReminder } from '../../lib/reminder';
 import { COUPON_COST, DAILY_MAX, earnedFor, STEPS_PER_REWARD } from '../../lib/rewards';
 import { useWalk } from '../../store/WalkStore';
 import { colors } from '../../theme';
@@ -22,6 +23,24 @@ export default function WalkHome() {
   const insets = useSafeAreaInsets();
   const w = useWalk();
   const [adTick, setAdTick] = useState(0);
+  const [reminderOn, setReminderOn] = useState(false);
+  useEffect(() => { getReminderOn().then(setReminderOn); }, []);
+
+  async function toggleReminder(on: boolean) {
+    setReminderOn(on);
+    const ok = await setDailyReminder(on);
+    if (!ok) {
+      setReminderOn(false);
+      Alert.alert('알림을 켤 수 없어요', '휴대폰 설정에서 이 앱(Expo Go)의 알림을 허용해 주세요.');
+    } else if (on) {
+      Alert.alert('매일 알림을 켰어요', `매일 저녁 ${REMINDER_HOUR}시에 보상 받으라고 알려 드릴게요. 앱이 꺼져 있어도 와요.`);
+    }
+  }
+
+  async function onTestReminder() {
+    const ok = await testReminder(10);
+    Alert.alert(ok ? '10초 뒤에 알림이 와요' : '알림을 보낼 수 없어요', ok ? '홈 화면으로 나가거나 화면을 꺼 두고 기다려 보세요.' : '휴대폰 설정에서 알림을 허용해 주세요.');
+  }
   const r = w.reading;
   const steps = r?.status === 'ok' ? r.steps ?? 0 : null;
   const dateKey = r?.dateKey ?? '';
@@ -114,6 +133,15 @@ export default function WalkHome() {
         </Text>
       </Pressable>
 
+      {/* 매일 정해진 시간 알림 */}
+      <View style={[cardStyle, s.between]}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.remTitle}>⏰  매일 저녁 {REMINDER_HOUR}시 보상 알림</Text>
+          <Text style={[T.caption, { marginTop: 4 }]}>앱이 꺼져 있어도 와요. 알림을 누르면 걸음을 확인하고 보상을 받을 수 있어요.</Text>
+        </View>
+        <Switch value={reminderOn} onValueChange={toggleReminder} trackColor={{ true: colors.primary, false: colors.line }} thumbColor="#FFFFFF" />
+      </View>
+
       <Section title="오늘의 광고 가게">
         <FeaturedStore placement="home" />
       </Section>
@@ -134,6 +162,7 @@ export default function WalkHome() {
         )}
         <View style={[s.chips, { marginTop: 8 }]}>
           <Chip label="광고 팝업 다시 보기" on={false} onPress={() => { resetAdPopup().then(() => setAdTick((n) => n + 1)); }} />
+          <Chip label="10초 뒤 알림 테스트" on={false} onPress={onTestReminder} />
         </View>
         <Text style={[T.caption, { marginTop: 10 }]}>
           시연용 데이터는 발표에서 보상 달성 과정을 보여 주기 위한 값이에요. 실제 걸음과 구분해서 표시돼요.
@@ -170,6 +199,7 @@ const s = StyleSheet.create({
   dotCan: { backgroundColor: colors.primaryLight },
   balance: { fontSize: 22, fontWeight: '700', color: colors.ink },
   em: { color: colors.primary, fontWeight: '700' },
+  remTitle: { fontSize: 16, fontWeight: '700', color: colors.ink },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   log: { backgroundColor: colors.fill, borderRadius: 14, padding: 14, marginVertical: 12 },
   logRow: { fontSize: 13, color: colors.sub, fontVariant: ['tabular-nums'], marginVertical: 2 },
