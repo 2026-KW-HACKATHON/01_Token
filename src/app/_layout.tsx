@@ -14,6 +14,7 @@ export default function RootLayout() {
           headerTintColor: colors.ink,
           headerStyle: { backgroundColor: colors.paper },
           headerShadowVisible: false,
+          headerTitleStyle: { fontSize: 17, fontWeight: '700' },
           headerBackTitle: '뒤로',
           contentStyle: { backgroundColor: colors.paper },
         }}

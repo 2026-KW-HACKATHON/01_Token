@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { CAT_GROUPS, searchNearby } from '../../api/kakao';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PlaceThumb } from '../../components/PlaceThumb';
 import { Btn, Chip, inputStyle, Tag } from '../../components/ui';
 import { distanceM, kakaoRouteUrl, walkMinutes } from '../../lib/geo';
@@ -27,6 +28,7 @@ const km = (m: number) => (m >= 1000 ? `${m / 1000}km` : `${m}m`);
 
 /** F-LBUGRG 위치·상권 검색 + F-NACDUD 필터·정렬 + F-EIPVIV 결과 없음 대안 */
 export default function Explore() {
+  const insets = useSafeAreaInsets();
   const store = useAppStore();
   const [region, setRegion] = useState(DEFAULT_REGION);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -150,9 +152,9 @@ export default function Explore() {
   ];
 
   return (
-    <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={s.wrap} keyboardShouldPersistTaps="handled">
+    <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={[s.wrap, { paddingTop: insets.top + 16 }]} keyboardShouldPersistTaps="handled">
       <Text style={s.title}>동네의 새로운 발견</Text>
-      <Text style={[s.body, { color: colors.muted, marginBottom: 20 }]}>가까운 골목에서 내 취향의 가게를 찾아요.</Text>
+      <Text style={[s.body, { color: colors.muted, marginBottom: 20, marginHorizontal: 4 }]}>가까운 골목에서 내 취향의 가게를 찾아요.</Text>
       <View style={s.row}>
         <TextInput
           style={[inputStyle, { flex: 1 }, coords && { color: colors.muted }]}
@@ -266,25 +268,25 @@ export default function Explore() {
 }
 
 const s = StyleSheet.create({
-  wrap: { padding: 20, paddingBottom: 60 },
-  title: { fontSize: 27, fontWeight: '800', color: colors.ink, lineHeight: 36, letterSpacing: -0.8, marginBottom: 6 },
+  wrap: { paddingHorizontal: 18, paddingBottom: 60 },
+  title: { fontSize: 26, fontWeight: '700', color: colors.ink, lineHeight: 35, letterSpacing: -0.6, marginBottom: 4, marginHorizontal: 4 },
   row: { flexDirection: 'row', gap: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  hint: { fontSize: 12, color: colors.muted, marginTop: 10, lineHeight: 17 },
-  body: { fontSize: 14, color: colors.ink, lineHeight: 21 },
+  hint: { fontSize: 14, color: colors.muted, marginTop: 12, lineHeight: 20 },
+  body: { fontSize: 15, color: colors.sub, lineHeight: 22 },
   activeRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 20 },
-  activeText: { fontSize: 13, fontWeight: '700', color: colors.ink, marginRight: 4 },
-  activeChip: { backgroundColor: colors.roseSoft, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
-  activeChipText: { color: colors.rose, fontSize: 12, fontWeight: '600' },
-  link: { fontSize: 13, color: colors.route, fontWeight: '600' },
-  count: { fontSize: 13, color: colors.muted, marginTop: 14, marginBottom: 6 },
-  empty: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginTop: 14, borderWidth: 1, borderColor: colors.line },
-  emptyTitle: { fontSize: 16, fontWeight: '800', color: colors.ink },
+  activeText: { fontSize: 15, fontWeight: '700', color: colors.ink, marginRight: 4 },
+  activeChip: { backgroundColor: colors.primarySoft, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+  activeChipText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+  link: { fontSize: 14, color: colors.primary, fontWeight: '700' },
+  count: { fontSize: 15, fontWeight: '700', color: colors.sub, marginTop: 16, marginBottom: 8, marginHorizontal: 4 },
+  empty: { backgroundColor: colors.card, borderRadius: 24, padding: 22, marginTop: 14 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.ink },
   item: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 22,
-    padding: 18, marginBottom: 10, borderWidth: 1, borderColor: colors.line,
+    flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.card, borderRadius: 24,
+    padding: 18, marginBottom: 10,
   },
-  name: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  meta: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  name: { fontSize: 17, fontWeight: '700', color: colors.ink },
+  meta: { fontSize: 14, color: colors.muted, marginTop: 2 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
 });
