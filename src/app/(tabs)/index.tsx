@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AdPopup, resetAdPopup } from '../../components/AdPopup';
 import { FeaturedStore } from '../../components/FeaturedStore';
 import { Btn, cardStyle, Chip, Disclosure, ProgressBar, Section, T, Tag } from '../../components/ui';
 import { COUPON_COST, DAILY_MAX, earnedFor, STEPS_PER_REWARD } from '../../lib/rewards';
@@ -19,6 +21,7 @@ const hhmm = (iso: string) => {
 export default function WalkHome() {
   const insets = useSafeAreaInsets();
   const w = useWalk();
+  const [adTick, setAdTick] = useState(0);
   const r = w.reading;
   const steps = r?.status === 'ok' ? r.steps ?? 0 : null;
   const dateKey = r?.dateKey ?? '';
@@ -50,6 +53,7 @@ export default function WalkHome() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={[s.wrap, { paddingTop: insets.top + 16 }]}>
+      <AdPopup trigger={adTick} />
       <Text style={s.kicker}>월계 들름길</Text>
       <Text style={[T.hero, s.hero]}>
         {steps == null ? '오늘 걸음을 확인해 볼까요?' : <>오늘 <Text style={{ color: colors.primary }}>{steps.toLocaleString()}보</Text> 걸었어요</>}
@@ -110,7 +114,7 @@ export default function WalkHome() {
         </Text>
       </Pressable>
 
-      <Section title="오늘 들러볼 가게">
+      <Section title="오늘의 광고 가게">
         <FeaturedStore placement="home" />
       </Section>
 
@@ -128,6 +132,9 @@ export default function WalkHome() {
             <Chip label="잔액 9개로" on={false} onPress={() => w.setDemoBalance(9)} />
           </View>
         )}
+        <View style={[s.chips, { marginTop: 8 }]}>
+          <Chip label="광고 팝업 다시 보기" on={false} onPress={() => { resetAdPopup().then(() => setAdTick((n) => n + 1)); }} />
+        </View>
         <Text style={[T.caption, { marginTop: 10 }]}>
           시연용 데이터는 발표에서 보상 달성 과정을 보여 주기 위한 값이에요. 실제 걸음과 구분해서 표시돼요.
         </Text>

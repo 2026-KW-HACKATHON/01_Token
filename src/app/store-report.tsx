@@ -57,7 +57,7 @@ export default function StoreReport() {
           ))}
         </View>
         <Text style={[T.caption, { marginTop: 14 }]}>
-          가게는 광고비 대신 걷기 쿠폰 혜택을 내고, 앱 안 노출과 쿠폰 사용 성과를 확인해요.
+          가게는 걷기 쿠폰 혜택을 내고, 광고 자리(앱 첫 화면 팝업·혜택 목록 맨 위·홈 카드)에 노출돼요. 노출부터 쿠폰 사용까지 성과를 여기서 확인해요.
         </Text>
       </View>
 

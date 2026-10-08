@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FeaturedStore } from '../../components/FeaturedStore';
+import { featuredStoreFor } from '../../components/FeaturedStore';
 import { MapFallback } from '../../components/MapFallback';
-import { cardStyle, Chip, ListRow, Notice, T } from '../../components/ui';
+import { cardStyle, Chip, ListRow, Notice, T, Tag } from '../../components/ui';
 import { WALK_STORES, won } from '../../data/walkStores';
 import { CAN_EMBED_MAP } from '../../lib/mapSupport';
+import { dateKeyOf } from '../../lib/steps';
 import { COUPON_COST } from '../../lib/rewards';
 import { useWalk } from '../../store/WalkStore';
 import { colors, STORE_ICON } from '../../theme';
@@ -30,12 +31,20 @@ export default function PerkMap() {
 
   const open = (id: string) => router.push({ pathname: '/store/[id]', params: { id } });
 
+  // 광고 자리: 날짜 순환으로 정한 가게를 목록 맨 위에 고정 (걷기 데이터로 고르지 않음)
+  const adId = featuredStoreFor().id;
+  const ad = stores.find((x) => x.st.id === adId);
+  const organic = stores.filter((x) => x.st.id !== adId);
+
   // 목록 노출 기록 (필터 조합마다 이 실행에서 한 번만)
   const logStore = w.logStore;
   const shownIds = stores.map((x) => x.st.id).join(',');
   useEffect(() => {
     if (shownIds) logStore(shownIds.split(','), 'shown', `map:${cat}:${budget}`);
   }, [logStore, shownIds, cat, budget]);
+  useEffect(() => {
+    if (ad) logStore([adId], 'shown', `ad-top:${adId}:${dateKeyOf(new Date())}`);
+  }, [logStore, ad, adId]);
 
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={[s.wrap, { paddingTop: insets.top + 16 }]}>
@@ -77,10 +86,28 @@ export default function PerkMap() {
           <Text style={T.caption}>쿠폰 1장 = 보상 {COUPON_COST}개</Text>
         </View>
         <View style={{ height: 18 }} />
+        {ad && (
+          <Pressable onPress={() => open(ad.st.id)} style={({ pressed }) => [s.ad, pressed && { opacity: 0.7 }]}>
+            <View style={s.adTags}>
+              <Tag label="광고" tone="muted" />
+              <Text style={s.adNote}>오늘의 추천 가게 · 시연용</Text>
+            </View>
+            <ListRow
+              icon={STORE_ICON[ad.st.category] ?? '🏪'}
+              title={ad.st.name}
+              sub={ad.st.perk}
+              subColor={colors.primary}
+              last
+            />
+            <Text style={[s.menus, { marginLeft: 58 }]} numberOfLines={1}>
+              {ad.fit.slice(0, 3).map((m) => `${m.name} ${won(m.price)}`).join(' · ')}
+            </Text>
+          </Pressable>
+        )}
         {stores.length === 0 && (
           <Text style={T.body}>조건에 맞는 메뉴가 있는 가게가 없어요. 예산이나 분류를 바꿔 보세요.</Text>
         )}
-        {stores.map(({ st, fit }, i) => {
+        {organic.map(({ st, fit }, i) => {
           const owned = w.rewards.coupons.filter((c) => c.storeId === st.id && !c.usedAt).length;
           return (
             <View key={st.id}>
@@ -96,17 +123,13 @@ export default function PerkMap() {
               <Text style={s.menus} numberOfLines={1}>
                 {fit.slice(0, 3).map((m) => `${m.name} ${won(m.price)}`).join(' · ')}
               </Text>
-              {i < stores.length - 1 && <View style={s.divider} />}
+              {i < organic.length - 1 && <View style={s.divider} />}
             </View>
           );
         })}
       </View>
 
       <Text style={[T.caption, { marginHorizontal: 4 }]}>메뉴·가격·위치는 시연용 예시예요. 지도의 가게 위치는 실제 매장 위치가 아니에요.</Text>
-
-      <View style={{ marginTop: 20 }}>
-        <FeaturedStore placement="map" />
-      </View>
 
       <Pressable onPress={() => router.push('/store-report')} style={({ pressed }) => [cardStyle, s.owner, pressed && { opacity: 0.7 }]}>
         <Text style={s.ownerText}>📊  사장님 화면: 제휴 가게 성과 보기 (시연)</Text>
@@ -126,6 +149,9 @@ const s = StyleSheet.create({
   owned: { fontSize: 13, fontWeight: '700', color: colors.success, backgroundColor: colors.successSoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden' },
   menus: { fontSize: 14, color: colors.muted, marginLeft: 58, marginTop: 2 },
   divider: { height: 1, backgroundColor: colors.line, marginVertical: 16, marginLeft: 58 },
+  ad: { backgroundColor: colors.primarySoft, borderRadius: 18, padding: 14, marginHorizontal: -8, marginBottom: 18 },
+  adTags: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  adNote: { fontSize: 13, fontWeight: '600', color: colors.primary },
   owner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingVertical: 18 },
   ownerText: { fontSize: 15, fontWeight: '600', color: colors.sub },
 });

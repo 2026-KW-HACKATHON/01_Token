@@ -8,7 +8,7 @@ import { colors, STORE_ICON } from '../theme';
 import { IconBox, Tag } from './ui';
 
 /**
- * 오늘의 동네 가게 (제휴 노출 카드)
+ * 오늘의 동네 가게 (광고 카드)
  * - 날짜 기준으로 모든 사용자에게 같은 순서로 돌아가며 보여 준다.
  * - 걸음수·보상 잔액 등 걷기 데이터로 고르지 않는다(건강·활동 데이터를 광고에 쓰지 않음).
  */
@@ -33,7 +33,8 @@ export function FeaturedStore({ placement }: { placement: string }) {
       accessibilityRole="button"
     >
       <View style={s.head}>
-        <Tag label="제휴 · 시연용" tone="warn" />
+        <Tag label="광고" tone="muted" />
+        <Tag label="시연용" tone="warn" />
         <Text style={s.kicker}>오늘의 동네 가게</Text>
       </View>
       <View style={s.row}>
