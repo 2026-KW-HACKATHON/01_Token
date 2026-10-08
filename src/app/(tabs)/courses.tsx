@@ -39,7 +39,7 @@ export default function CoursesScreen() {
       <View style={s.empty}>
         <Text style={s.emptyTitle}>아직 만든 코스나 저장한 장소가 없어요</Text>
         <Text style={s.emptyText}>코스 찾기에서 추천을 받아 저장하거나, 빈 코스를 만들어 장소를 직접 담아 보세요.</Text>
-        <Btn label="추천 받으러 가기" kind="primary" onPress={() => router.navigate('/')} />
+        <Btn label="추천 받으러 가기" kind="primary" onPress={() => router.navigate('/course-find')} />
         <Btn label="빈 코스 만들기" onPress={create} />
       </View>
     );

@@ -1,11 +1,13 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AppStoreProvider } from '../store/AppStore';
+import { WalkStoreProvider } from '../store/WalkStore';
 import { colors } from '../theme';
 
 export default function RootLayout() {
   return (
     <AppStoreProvider>
+      <WalkStoreProvider>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -25,7 +27,9 @@ export default function RootLayout() {
         <Stack.Screen name="report" options={{ title: '정보 수정 요청', presentation: 'modal' }} />
         <Stack.Screen name="owner-apply" options={{ title: '운영 권한 신청' }} />
         <Stack.Screen name="owner-edit" options={{ title: '영업 정보 수정' }} />
+        <Stack.Screen name="store/[id]" options={{ title: '가게' }} />
       </Stack>
+      </WalkStoreProvider>
     </AppStoreProvider>
   );
 }

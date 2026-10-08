@@ -167,7 +167,7 @@ export default function CourseDetail() {
       {isEmpty && (
         <View style={s.emptyBox}>
           <Text style={s.body}>아직 담은 장소가 없어요. 추천에서 장소를 고르거나 아래 저장한 장소를 추가해 보세요.</Text>
-          <Btn label="추천에서 장소 찾기" onPress={() => router.navigate('/')} />
+          <Btn label="추천에서 장소 찾기" onPress={() => router.navigate('/course-find')} />
         </View>
       )}
 

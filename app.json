@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "데이트 코스",
+    "name": "월계 들름길",
     "slug": "date-course",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -37,6 +37,12 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "현재 위치 주변의 데이트 장소를 추천하기 위해 위치를 사용합니다."
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "걸은 만큼 월계1동 가게 쿠폰 보상을 계산하기 위해 오늘 걸음 기록을 읽습니다."
         }
       ]
     ],
