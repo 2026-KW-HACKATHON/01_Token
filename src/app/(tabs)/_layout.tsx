@@ -34,7 +34,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="courses" options={{ href: null, title: '내 코스' }} />
       <Tabs.Screen name="manage" options={{ href: null, title: '운영' }} />
     </Tabs>
-    {/* 걸음이 1,000보 단위를 넘으면 어느 탭에서든 보상 알림 */}
+    {/* 걸음이 1,000보 단위를 넘으면 어느 탭에서든 월계토큰 알림 */}
     <RewardReadyPopup />
     <ReminderBridge />
     </>

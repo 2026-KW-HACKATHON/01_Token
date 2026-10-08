@@ -48,7 +48,7 @@ export default function PerkMap() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={[s.wrap, { paddingTop: insets.top + 16 }]}>
-      <Text style={[T.hero, s.hero]}>모은 보상,{'\n'}어디서 써볼까요?</Text>
+      <Text style={[T.hero, s.hero]}>모은 월계토큰,{'\n'}어디서 써볼까요?</Text>
       <Notice text="시연용 가상 가게예요. 실제 매장·제휴·사용 가능한 쿠폰이 아니에요." style={{ marginBottom: 12 }} />
 
       {CAN_EMBED_MAP ? (
@@ -82,8 +82,8 @@ export default function PerkMap() {
 
       <View style={cardStyle}>
         <View style={s.between}>
-          <Text style={T.label}>내 보상 <Text style={{ color: colors.ink, fontWeight: '700' }}>{w.rewards.balance}개</Text></Text>
-          <Text style={T.caption}>쿠폰 1장 = 보상 {COUPON_COST}개</Text>
+          <Text style={T.label}>내 월계토큰 <Text style={{ color: colors.ink, fontWeight: '700' }}>{w.rewards.balance}개</Text></Text>
+          <Text style={T.caption}>쿠폰 1장 = 월계토큰 {COUPON_COST}개</Text>
         </View>
         <View style={{ height: 18 }} />
         {ad && (
@@ -131,10 +131,6 @@ export default function PerkMap() {
 
       <Text style={[T.caption, { marginHorizontal: 4 }]}>메뉴·가격·위치는 시연용 예시예요. 지도의 가게 위치는 실제 매장 위치가 아니에요.</Text>
 
-      <Pressable onPress={() => router.push('/store-report')} style={({ pressed }) => [cardStyle, s.owner, pressed && { opacity: 0.7 }]}>
-        <Text style={s.ownerText}>📊  사장님 화면: 제휴 가게 성과 보기 (시연)</Text>
-        <Text style={{ fontSize: 22, color: colors.faint }}>›</Text>
-      </Pressable>
     </ScrollView>
   );
 }

@@ -35,7 +35,7 @@ export default function Coupons() {
         <IconBox icon="🎟️" size={80} bg={colors.card} />
         <Text style={[T.title, { marginTop: 20 }]}>아직 쿠폰이 없어요</Text>
         <Text style={[T.body, { textAlign: 'center', marginTop: 6 }]}>
-          걸어서 보상 10개를 모으면{'\n'}혜택 지도에서 가게 쿠폰으로 바꿀 수 있어요.
+          걸어서 월계토큰 10개를 모으면{'\n'}혜택 지도에서 가게 쿠폰으로 바꿀 수 있어요.
         </Text>
         <Btn label="혜택 지도 보기" kind="primary" size="lg" onPress={() => router.navigate('/map')} style={{ marginTop: 24, alignSelf: 'stretch' }} />
       </View>

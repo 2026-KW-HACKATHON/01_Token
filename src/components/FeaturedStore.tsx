@@ -10,7 +10,7 @@ import { IconBox, Tag } from './ui';
 /**
  * 오늘의 동네 가게 (광고 카드)
  * - 날짜 기준으로 모든 사용자에게 같은 순서로 돌아가며 보여 준다.
- * - 걸음수·보상 잔액 등 걷기 데이터로 고르지 않는다(건강·활동 데이터를 광고에 쓰지 않음).
+ * - 걸음수·월계토큰 잔액 등 걷기 데이터로 고르지 않는다(건강·활동 데이터를 광고에 쓰지 않음).
  */
 export function featuredStoreFor(d = new Date()) {
   const dayIndex = Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 864e5);

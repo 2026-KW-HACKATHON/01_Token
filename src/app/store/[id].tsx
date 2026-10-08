@@ -39,14 +39,14 @@ export default function StoreDetail() {
   function onExchange() {
     Alert.alert(
       '쿠폰으로 교환할까요?',
-      `보상 ${COUPON_COST}개를 사용해 ${store.name} 쿠폰 1장을 받아요.\n교환 후 다른 가게 쿠폰으로 바꿀 수 없어요.`,
+      `월계토큰 ${COUPON_COST}개를 사용해 ${store.name} 쿠폰 1장을 받아요.\n교환 후 다른 가게 쿠폰으로 바꿀 수 없어요.`,
       [
         { text: '취소', style: 'cancel' },
         {
           text: '교환하기',
           onPress: () => {
             const c = w.exchangeFor(store.id, store.validDays);
-            if (!c) { Alert.alert('보상이 부족해요', `쿠폰 1장에 보상 ${COUPON_COST}개가 필요해요.`); return; }
+            if (!c) { Alert.alert('월계토큰이 부족해요', `쿠폰 1장에 월계토큰 ${COUPON_COST}개가 필요해요.`); return; }
             Alert.alert('쿠폰을 받았어요', '쿠폰함에서 확인할 수 있어요.', [
               { text: '닫기', style: 'cancel' },
               { text: '쿠폰함 보기', onPress: () => router.navigate('/coupons') },
@@ -121,12 +121,11 @@ export default function StoreDetail() {
           <Text style={[T.caption, { marginTop: 10 }]}>실제 경로와 시간은 지도 앱에서 확인해요. 가상 위치라 실제 매장으로 안내되지 않아요.</Text>
         </View>
 
-        <Btn label="📊  사장님 화면: 가게 성과 보기 (시연)" kind="text" onPress={() => router.push('/store-report')} />
       </ScrollView>
 
-      <BottomCTA note={enough ? `내 보상 ${balance}개 · 교환하면 ${balance - COUPON_COST}개 남아요` : `내 보상 ${balance}개 · 쿠폰 1장에 ${COUPON_COST}개가 필요해요`}>
+      <BottomCTA note={enough ? `내 월계토큰 ${balance}개 · 교환하면 ${balance - COUPON_COST}개 남아요` : `내 월계토큰 ${balance}개 · 쿠폰 1장에 ${COUPON_COST}개가 필요해요`}>
         <Btn
-          label={enough ? `보상 ${COUPON_COST}개로 쿠폰 받기` : `보상 ${COUPON_COST - balance}개 더 모으면 받을 수 있어요`}
+          label={enough ? `월계토큰 ${COUPON_COST}개로 쿠폰 받기` : `월계토큰 ${COUPON_COST - balance}개 더 모으면 받을 수 있어요`}
           kind="primary"
           size="lg"
           disabled={!enough}

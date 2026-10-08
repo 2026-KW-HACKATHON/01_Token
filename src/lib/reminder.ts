@@ -4,8 +4,8 @@ import { Platform } from 'react-native';
 
 /**
  * 매일 정해진 시간 알림 (휴대폰에 예약해 두므로 앱이 꺼져 있어도 온다)
- * - 걸음 수를 몰래 읽지 않는다. 그래서 알림 문구에 걸음·보상 개수를 쓰지 않는다.
- * - 알림을 눌러 앱을 열면 걸음을 읽고, 받을 보상이 있으면 보상 알림 팝업이 뜬다.
+ * - 걸음 수를 몰래 읽지 않는다. 그래서 알림 문구에 걸음·월계토큰 개수를 쓰지 않는다.
+ * - 알림을 눌러 앱을 열면 걸음을 읽고, 받을 월계토큰이 있으면 월계토큰 알림 팝업이 뜬다.
  */
 const KEY = '@walk/reminder/v1';
 const DAILY_ID = 'walk-daily-reminder';
@@ -25,7 +25,7 @@ Notifications.setNotificationHandler({
 async function ensureChannel() {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync('walk', {
-    name: '걷기 보상 알림',
+    name: '월계토큰 알림',
     importance: Notifications.AndroidImportance.HIGH,
   });
 }
@@ -59,7 +59,7 @@ export async function setDailyReminder(on: boolean): Promise<boolean> {
       identifier: DAILY_ID,
       content: {
         title: '월계 들름길 👟',
-        body: '오늘 걸은 걸음으로 보상을 받아 가세요. 쌓인 보상은 동네 가게 쿠폰으로 바꿀 수 있어요.',
+        body: '오늘 걸은 걸음으로 월계토큰을 받아 가세요. 월계토큰 10개를 모으면 동네 가게 쿠폰을 드려요.',
         data: { to: '/' },
       },
       trigger: {
@@ -83,7 +83,7 @@ export async function testReminder(seconds = 10): Promise<boolean> {
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '월계 들름길 👟 (테스트)',
-        body: '오늘 걸은 걸음으로 보상을 받아 가세요. 쌓인 보상은 동네 가게 쿠폰으로 바꿀 수 있어요.',
+        body: '오늘 걸은 걸음으로 월계토큰을 받아 가세요. 월계토큰 10개를 모으면 동네 가게 쿠폰을 드려요.',
         data: { to: '/' },
       },
       trigger: {

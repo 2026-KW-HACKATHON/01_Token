@@ -1,7 +1,7 @@
 /**
- * 걷기 보상 규칙 (시제품 임시 기준, docs/WALK_REWARD_MAP_FINAL.md)
- * - 1,000보당 보상 1개, 하루 최대 5개
- * - 보상 10개 = 특정 가게 쿠폰 1장
+ * 걷기 월계토큰 규칙 (시제품 임시 기준, docs/WALK_REWARD_MAP_FINAL.md)
+ * - 1,000보당 월계토큰 1개, 하루 최대 5개
+ * - 월계토큰 10개 = 특정 가게 쿠폰 1장
  * - 잔액은 다음 날로 이월, 일별 지급 한도는 날짜마다 초기화
  * - 조회값 전체를 잔액에 더하지 않고, 해당 날짜에 이미 받은 개수와의 차이만 지급
  */
@@ -19,7 +19,7 @@ export interface Coupon {
 
 export interface RewardState {
   balance: number;
-  claimedByDate: Record<string, number>; // 날짜별 이미 받은 보상 개수
+  claimedByDate: Record<string, number>; // 날짜별 이미 받은 월계토큰 개수
   coupons: Coupon[];
 }
 

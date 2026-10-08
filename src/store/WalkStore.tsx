@@ -6,7 +6,7 @@ import { androidPermission, dateKeyOf, demoReading, liveReading, readTodaySteps,
 import { claim, emptyState, exchange, useCoupon, type Coupon, type RewardState } from '../lib/rewards';
 
 /**
- * 월계 들름길 걷기 보상 상태 (기존 AppStore와 분리된 저장 키)
+ * 월계 들름길 걷기 월계토큰 상태 (기존 AppStore와 분리된 저장 키)
  * - 걸음수는 앱을 열거나 다시 돌아올 때 조회한다(기기가 기록 → 앱이 조회).
  * - 시연 모드 값은 화면에 '시연용 데이터'로 표시한다.
  * - 기기 로컬 저장이라 서버 검증·여러 기기 동기화는 하지 않는다.
@@ -16,7 +16,7 @@ const KEY = '@walk/state/v1';
 export interface StepLog { at: string; trigger: string; status: string; steps: number | null; demo: boolean }
 
 /**
- * 제휴 가게 성과 이벤트. 걸음수·보상 잔액 등 걷기 데이터는 넣지 않는다(가게용 집계와 분리).
+ * 제휴 가게 성과 이벤트. 걸음수·월계토큰 잔액 등 걷기 데이터는 넣지 않는다(가게용 집계와 분리).
  * shown: 지도·목록·추천 카드 노출, view: 가게 상세 조회, exchanged: 쿠폰 교환, used: 매장 사용 확인
  */
 export type StoreEventType = 'shown' | 'view' | 'exchanged' | 'used';

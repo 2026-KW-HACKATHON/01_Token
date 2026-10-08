@@ -5,7 +5,7 @@ import { useWalk } from '../store/WalkStore';
 
 /**
  * 알림을 눌러 앱이 열리면 걷기 홈으로 이동하고 걸음을 다시 읽는다.
- * 받을 보상이 있으면 RewardReadyPopup이 이어서 뜬다.
+ * 받을 월계토큰이 있으면 RewardReadyPopup이 이어서 뜬다.
  */
 export function ReminderBridge() {
   const w = useWalk();

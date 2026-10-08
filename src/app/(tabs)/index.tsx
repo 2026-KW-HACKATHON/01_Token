@@ -18,7 +18,7 @@ const hhmm = (iso: string) => {
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-/** 월계 들름길 — 걷기 홈: 오늘 걸음 → 보상 받기 → 잔액 → 쿠폰 교환으로 이동 */
+/** 월계 들름길 — 걷기 홈: 오늘 걸음 → 월계토큰 받기 → 잔액 → 쿠폰 교환으로 이동 */
 export default function WalkHome() {
   const insets = useSafeAreaInsets();
   const w = useWalk();
@@ -33,7 +33,7 @@ export default function WalkHome() {
       setReminderOn(false);
       Alert.alert('알림을 켤 수 없어요', '휴대폰 설정에서 이 앱(Expo Go)의 알림을 허용해 주세요.');
     } else if (on) {
-      Alert.alert('매일 알림을 켰어요', `매일 저녁 ${REMINDER_HOUR}시에 보상 받으라고 알려 드릴게요. 앱이 꺼져 있어도 와요.`);
+      Alert.alert('매일 알림을 켰어요', `매일 저녁 ${REMINDER_HOUR}시에 월계토큰을 받으라고 알려 드릴게요. 앱이 꺼져 있어도 와요.`);
     }
   }
 
@@ -53,22 +53,29 @@ export default function WalkHome() {
 
   function onClaim() {
     const added = w.claimToday();
-    if (added) Alert.alert(`보상 ${added}개를 받았어요`, `잔액 ${balance + added}개`);
-    else Alert.alert('새로 받을 보상이 없어요', '같은 걸음으로는 다시 지급되지 않아요. 더 걷고 다시 확인해 주세요.');
+    if (added) Alert.alert(`월계토큰 ${added}개를 받았어요`, `잔액 ${balance + added}개`);
+    else Alert.alert('새로 받을 월계토큰이 없어요', '같은 걸음으로는 다시 지급되지 않아요. 더 걷고 다시 확인해 주세요.');
+  }
+
+  function confirmResetStoreEvents() {
+    Alert.alert('가게 성과 기록을 초기화할까요?', '이 기기에 쌓인 모든 가게의 노출·조회·교환·사용 기록이 지워져요.', [
+      { text: '취소', style: 'cancel' },
+      { text: '초기화', style: 'destructive', onPress: w.resetStoreEvents },
+    ]);
   }
 
   function confirmReset() {
-    Alert.alert('걷기 기록을 초기화할까요?', '보상 잔액·쿠폰·조회 기록이 이 기기에서 지워져요.', [
+    Alert.alert('걷기 기록을 초기화할까요?', '월계토큰 잔액·쿠폰·조회 기록이 이 기기에서 지워져요.', [
       { text: '취소', style: 'cancel' },
       { text: '초기화', style: 'destructive', onPress: w.resetWalk },
     ]);
   }
 
   const headline2 =
-    steps == null ? '걸음을 확인하면 보상을 계산해요'
-      : canClaim > 0 ? `보상 ${canClaim}개를 받을 수 있어요`
-        : nextIn == null ? '오늘 보상을 모두 채웠어요'
-          : `다음 보상까지 ${nextIn.toLocaleString()}보`;
+    steps == null ? '걸음을 확인하면 월계토큰을 계산해요'
+      : canClaim > 0 ? `월계토큰 ${canClaim}개를 받을 수 있어요`
+        : nextIn == null ? '오늘 월계토큰을 모두 채웠어요'
+          : `다음 월계토큰까지 ${nextIn.toLocaleString()}보`;
 
   return (
     <ScrollView style={{ backgroundColor: colors.paper }} contentContainerStyle={[s.wrap, { paddingTop: insets.top + 16 }]}>
@@ -79,7 +86,7 @@ export default function WalkHome() {
         {'\n'}{headline2}
       </Text>
 
-      {/* 오늘 걸음 + 보상 받기 */}
+      {/* 오늘 걸음 + 월계토큰 받기 */}
       <View style={cardStyle}>
         <View style={s.between}>
           <Text style={T.label}>오늘 걸음</Text>
@@ -97,19 +104,19 @@ export default function WalkHome() {
         )}
         {r?.message ? <Text style={s.warn}>{r.message}</Text> : null}
 
-        {/* 하루 보상 5칸: 받은 칸 · 지금 받을 수 있는 칸 · 남은 칸 */}
+        {/* 하루 월계토큰 5칸: 받은 칸 · 지금 받을 수 있는 칸 · 남은 칸 */}
         <View style={s.dots}>
           {Array.from({ length: DAILY_MAX }, (_, i) => (
             <View key={i} style={[s.dot, i < claimed ? s.dotGot : i < earned ? s.dotCan : null]} />
           ))}
         </View>
         <View style={[s.between, { marginTop: 8 }]}>
-          <Text style={T.caption}>오늘 보상 {claimed} / {DAILY_MAX}개 받음</Text>
+          <Text style={T.caption}>오늘 월계토큰 {claimed} / {DAILY_MAX}개 받음</Text>
           {nextIn != null && <Text style={T.caption}>다음까지 {nextIn.toLocaleString()}보</Text>}
         </View>
 
         <Btn
-          label={canClaim ? `보상 ${canClaim}개 받기` : '지금 받을 보상이 없어요'}
+          label={canClaim ? `월계토큰 ${canClaim}개 받기` : '지금 받을 월계토큰이 없어요'}
           kind="primary"
           size="lg"
           disabled={!canClaim}
@@ -119,25 +126,26 @@ export default function WalkHome() {
         <Btn label="↻  걸음 다시 확인" kind="text" onPress={() => w.refresh('수동 조회')} style={{ marginTop: 4, minHeight: 40 }} />
       </View>
 
-      {/* 보상 잔액 */}
+      {/* 월계토큰 잔액 */}
       <Pressable accessibilityRole="button" onPress={() => router.navigate('/map')} style={({ pressed }) => [cardStyle, pressed && { opacity: 0.7 }]}>
         <View style={s.between}>
-          <Text style={T.label}>내 보상</Text>
+          <Text style={T.label}>내 월계토큰</Text>
           <Text style={s.balance}>{balance}개 <Text style={{ color: colors.faint }}>›</Text></Text>
         </View>
         <ProgressBar value={progress} style={{ marginTop: 14 }} />
         <Text style={[T.caption, { marginTop: 10 }]}>
           {balance >= COUPON_COST
             ? <>쿠폰으로 바꿀 수 있어요. <Text style={s.em}>혜택 지도에서 고르기</Text></>
-            : <>쿠폰까지 <Text style={s.em}>{COUPON_COST - balance}개</Text> 남았어요</>}
+            : <>쿠폰까지 월계토큰 <Text style={s.em}>{COUPON_COST - balance}개</Text> 남았어요</>}
         </Text>
+        <Text style={[T.caption, { marginTop: 2 }]}>🪙 월계토큰 {COUPON_COST}개를 모으면 동네 가게 쿠폰 1장을 드려요</Text>
       </Pressable>
 
       {/* 매일 정해진 시간 알림 */}
       <View style={[cardStyle, s.between]}>
         <View style={{ flex: 1 }}>
-          <Text style={s.remTitle}>⏰  매일 저녁 {REMINDER_HOUR}시 보상 알림</Text>
-          <Text style={[T.caption, { marginTop: 4 }]}>앱이 꺼져 있어도 와요. 알림을 누르면 걸음을 확인하고 보상을 받을 수 있어요.</Text>
+          <Text style={s.remTitle}>⏰  매일 저녁 {REMINDER_HOUR}시 월계토큰 알림</Text>
+          <Text style={[T.caption, { marginTop: 4 }]}>앱이 꺼져 있어도 와요. 알림을 누르면 걸음을 확인하고 월계토큰을 받을 수 있어요.</Text>
         </View>
         <Switch value={reminderOn} onValueChange={toggleReminder} trackColor={{ true: colors.primary, false: colors.line }} thumbColor="#FFFFFF" />
       </View>
@@ -164,8 +172,12 @@ export default function WalkHome() {
           <Chip label="광고 팝업 다시 보기" on={false} onPress={() => { resetAdPopup().then(() => setAdTick((n) => n + 1)); }} />
           <Chip label="10초 뒤 알림 테스트" on={false} onPress={onTestReminder} />
         </View>
+        <View style={[s.chips, { marginTop: 8 }]}>
+          <Chip label="🔒 사장님 로그인 (가게 성과)" on={false} onPress={() => router.push('/owner-login')} />
+          <Chip label="가게 성과 기록 초기화" on={false} onPress={confirmResetStoreEvents} />
+        </View>
         <Text style={[T.caption, { marginTop: 10 }]}>
-          시연용 데이터는 발표에서 보상 달성 과정을 보여 주기 위한 값이에요. 실제 걸음과 구분해서 표시돼요.
+          시연용 데이터는 발표에서 월계토큰을 모으는 과정을 보여 주기 위한 값이에요. 실제 걸음과 구분해서 표시돼요.
         </Text>
       </Disclosure>
 

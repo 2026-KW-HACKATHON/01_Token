@@ -21,7 +21,7 @@ export const colors = {
   primary: '#8A1601',
   primaryPressed: '#6B1100',
   primarySoft: '#FBEDEA',
-  primaryLight: '#D9A79E', // 받을 수 있는 보상 칸
+  primaryLight: '#D9A79E', // 받을 수 있는 월계토큰 칸
   success: '#03A66D',
   successSoft: '#E6F8F0',
   warnBg: '#FFF6E0',

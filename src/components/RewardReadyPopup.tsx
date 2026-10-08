@@ -11,8 +11,8 @@ import { Btn, Tag } from './ui';
 const KEY = '@walk/rewardNotice/v1'; // { dateKey, earned } 마지막으로 알린 단계
 
 /**
- * 보상 알림 팝업
- * - 걸음이 1,000보 단위를 새로 넘어 받을 보상이 생기면 앱 안에서 알려 준다.
+ * 월계토큰 알림 팝업
+ * - 걸음이 1,000보 단위를 새로 넘어 받을 월계토큰이 생기면 앱 안에서 알려 준다.
  * - 같은 날 같은 단계는 한 번만 알린다(앱을 다시 열어도 반복하지 않음).
  * - 앱이 꺼져 있을 때 보내는 휴대폰 알림은 아니다.
  */
@@ -67,29 +67,29 @@ export function RewardReadyPopup() {
     const added = w.claimToday();
     close();
     setTimeout(() => {
-      if (added) Alert.alert(`보상 ${added}개를 받았어요`, `잔액 ${before + added}개`);
-      else Alert.alert('새로 받을 보상이 없어요', '같은 걸음으로는 다시 지급되지 않아요.');
+      if (added) Alert.alert(`월계토큰 ${added}개를 받았어요`, `잔액 ${before + added}개`);
+      else Alert.alert('새로 받을 월계토큰이 없어요', '같은 걸음으로는 다시 지급되지 않아요.');
     }, 350);
   }
 
   if (!open) return null;
   return (
     <Modal visible transparent animationType="slide" onRequestClose={close}>
-      <Pressable style={s.dim} onPress={close} accessibilityLabel="보상 알림 닫기" />
+      <Pressable style={s.dim} onPress={close} accessibilityLabel="월계토큰 알림 닫기" />
       <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
         <View style={s.handle} />
         {w.demo && <View style={{ flexDirection: 'row' }}><Tag label="시연용 데이터 · 실제 측정 아님" tone="warn" /></View>}
         <Text style={s.emoji}>🎉</Text>
         <Text style={s.title}>{(earned * 1000).toLocaleString()}보를 넘었어요!</Text>
-        <Text style={s.sub}>보상 <Text style={s.em}>{canClaim}개</Text>를 받을 수 있어요</Text>
+        <Text style={s.sub}>월계토큰 <Text style={s.em}>{canClaim}개</Text>를 받을 수 있어요</Text>
 
         <View style={s.box}>
           <View style={s.row}><Text style={s.k}>오늘 걸음</Text><Text style={s.v}>{(steps ?? 0).toLocaleString()}보</Text></View>
-          <View style={s.row}><Text style={s.k}>오늘 받은 보상</Text><Text style={s.v}>{claimed} / {DAILY_MAX}개</Text></View>
+          <View style={s.row}><Text style={s.k}>오늘 받은 월계토큰</Text><Text style={s.v}>{claimed} / {DAILY_MAX}개</Text></View>
           <View style={s.row}><Text style={s.k}>지금 잔액</Text><Text style={s.v}>{w.rewards.balance}개</Text></View>
         </View>
 
-        <Btn label={`보상 ${canClaim}개 받기`} kind="primary" size="lg" onPress={claimNow} style={{ marginTop: 18 }} />
+        <Btn label={`월계토큰 ${canClaim}개 받기`} kind="primary" size="lg" onPress={claimNow} style={{ marginTop: 18 }} />
         <Btn label="나중에 받을게요" kind="text" onPress={close} style={{ marginTop: 4 }} />
       </View>
     </Modal>

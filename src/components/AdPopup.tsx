@@ -19,7 +19,7 @@ export async function resetAdPopup() {
 
 /**
  * 광고 팝업 (하루 한 번)
- * - 광고 가게는 날짜 기준 순환(featuredStoreFor)으로 정한다. 걸음수·보상 등 걷기 데이터로 고르지 않는다.
+ * - 광고 가게는 날짜 기준 순환(featuredStoreFor)으로 정한다. 걸음수·월계토큰 등 걷기 데이터로 고르지 않는다.
  * - '오늘 하루 보지 않기'를 누르면 같은 날에는 다시 뜨지 않는다. 닫기만 누르면 앱을 다시 열 때 다시 뜬다.
  */
 export function AdPopup({ trigger = 0 }: { trigger?: number }) {
@@ -34,7 +34,7 @@ export function AdPopup({ trigger = 0 }: { trigger?: number }) {
     const t = setTimeout(async () => {
       let hidden: string | null = null;
       try { hidden = await AsyncStorage.getItem(KEY); } catch { /* 무시 */ }
-      // 보상 알림 등 다른 팝업이 떠 있으면 이번에는 광고를 띄우지 않는다
+      // 월계토큰 알림 등 다른 팝업이 떠 있으면 이번에는 광고를 띄우지 않는다
       if (alive && hidden !== dateKeyOf(new Date()) && tryOpenPopup('ad')) setOpen(true);
     }, 700);
     return () => { alive = false; clearTimeout(t); };
